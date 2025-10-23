@@ -1,7 +1,14 @@
 import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/google-genai';
+import {openai} from 'genkit-openai';
 
 export const ai = genkit({
-  plugins: [googleAI()],
-  model: 'googleai/gemini-2.5-flash',
+  plugins: [
+    openai({
+      apiKey: process.env.OPENAI_API_KEY,
+      client: {
+        baseURL: 'https://nano-gpt.com/api/v1',
+      },
+    }),
+  ],
+  model: 'deepseek-ai/deepseek-v3.2-exp-thinking',
 });
