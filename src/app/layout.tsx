@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
+import { UserProvider } from '@auth0/nextjs-auth0/client';
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -33,7 +34,9 @@ export default function RootLayout({
         />
       </head>
       <body className={`font-body antialiased ${spaceGrotesk.variable}`}>
-        {children}
+        <UserProvider>
+          {children}
+        </UserProvider>
         <Toaster />
       </body>
     </html>

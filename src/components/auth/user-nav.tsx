@@ -13,26 +13,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { cookies } from 'next/headers';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
-import type { User } from '@/lib/definitions';
-import { logout } from '@/actions/auth';
 import Link from 'next/link';
+import { getSession } from '@auth0/nextjs-auth0/edge';
 
-export function UserNav() {
-  const session = cookies().get('session')?.value;
+export async function UserNav() {
+  const session = await getSession();
   if (!session) return null;
 
-  const user: User = JSON.parse(session);
-  const userAvatar = PlaceHolderImages.find(img => img.id === 'user-avatar');
+  const { user } = session;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={userAvatar?.imageUrl} alt={user.name} data-ai-hint={userAvatar?.imageHint} />
-            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+            {user.picture && <AvatarImage src={user.picture} alt={user.name || 'User avatar'} />}
+            <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -52,11 +48,9 @@ export function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <form action={logout}>
           <DropdownMenuItem asChild>
-            <button type="submit" className="w-full text-left">Log out</button>
+             <a href="/api/auth/logout" className="w-full text-left">Log out</a>
           </DropdownMenuItem>
-        </form>
       </DropdownMenuContent>
     </DropdownMenu>
   );

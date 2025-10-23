@@ -1,5 +1,6 @@
-import { LoginForm } from '@/components/login-form';
 import { Logo } from '@/components/icons';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function LoginPage() {
   return (
@@ -14,7 +15,9 @@ export default function LoginPage() {
                 Sign in to your account to continue
             </p>
         </div>
-        <LoginForm />
+        <Button className="w-full" asChild>
+            <Link href="/api/auth/login">Sign In</Link>
+        </Button>
       </div>
     </div>
   );

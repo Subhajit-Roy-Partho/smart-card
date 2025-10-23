@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { getSession } from '@auth0/nextjs-auth0/edge';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const sessionCookie = request.cookies.get('session')
-
-  const isApiRoute = pathname.startsWith('/api')
+  
+  const isApiRoute = pathname.startsWith('/api/auth');
   const isPublicAsset = /\.(.*)$/.test(pathname)
 
   if (isApiRoute || isPublicAsset || pathname.startsWith('/_next')) {
@@ -12,18 +12,19 @@ export function middleware(request: NextRequest) {
   }
 
   const isLoginPage = pathname === '/login'
+  const session = await getSession();
 
   if (isLoginPage) {
-    if (sessionCookie) {
+    if (session?.user) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
     return NextResponse.next()
   }
 
-  if (!sessionCookie) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  if (!session?.user) {
+    return NextResponse.redirect(new URL('/api/auth/login', request.url))
   }
-
+  
   if (pathname === '/') {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
@@ -32,5 +33,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!api/|_next/static|_next/image|favicon.ico).*)'],
 }

@@ -1,7 +1,8 @@
 export type User = {
   name: string
   email: string
-  role: 'admin' | 'maintainer' | 'standard' | 'outsider'
+  // This role is no longer managed by our app, but by Auth0
+  role?: 'admin' | 'maintainer' | 'standard' | 'outsider'
 }
 
 export type Card = {
