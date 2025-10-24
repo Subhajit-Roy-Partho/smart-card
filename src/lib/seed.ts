@@ -61,7 +61,7 @@ const cards = [
 const transactions = [
   {
     id: 'txn-1',
-    creditCardId: 'card-1',
+    cardId: 'card-1',
     amount: 799.99,
     outlet: 'Apple Store',
     categoryId: 'electronics',
@@ -69,7 +69,7 @@ const transactions = [
   },
   {
     id: 'txn-2',
-    creditCardId: 'card-2',
+    cardId: 'card-2',
     amount: 120.5,
     outlet: 'United Airlines',
     categoryId: 'travel',
@@ -77,7 +77,7 @@ const transactions = [
   },
   {
     id: 'txn-3',
-    creditCardId: 'card-3',
+    cardId: 'card-3',
     amount: 45.67,
     outlet: 'Whole Foods',
     categoryId: 'groceries',
@@ -85,7 +85,7 @@ const transactions = [
   },
   {
     id: 'txn-4',
-    creditCardId: 'card-1',
+    cardId: 'card-1',
     amount: 89.0,
     outlet: 'Adobe Creative Cloud',
     categoryId: 'software',
@@ -93,7 +93,7 @@ const transactions = [
   },
   {
     id: 'txn-5',
-    creditCardId: 'card-4',
+    cardId: 'card-4',
     amount: 150.0,
     outlet: 'Staples',
     categoryId: 'business',
@@ -140,12 +140,14 @@ export async function seedDatabase(userId: string) {
 
       // Seed Transactions for each card
       const cardTransactions = transactions.filter(
-        (t) => t.creditCardId === card.id
+        (t) => t.cardId === card.id
       );
       const transactionsRef = collection(cardDoc, 'transactions');
       cardTransactions.forEach((transaction) => {
         const transactionDoc = doc(transactionsRef, transaction.id);
-        batch.set(transactionDoc, transaction);
+        // Ensure the transaction data matches the Firestore structure (using cardId, not creditCardId)
+        const { cardId, ...transactionData } = transaction;
+        batch.set(transactionDoc, { ...transactionData, creditCardId: cardId });
       });
     });
     console.log('Seeding cards and transactions...');
