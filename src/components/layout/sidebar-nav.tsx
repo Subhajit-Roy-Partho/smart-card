@@ -7,6 +7,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSkeleton,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/icons';
 import {
@@ -77,7 +78,7 @@ export default function SidebarNav() {
     () => (firestore && user ? doc(firestore, 'users', user.uid) : null),
     [firestore, user]
   );
-  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
   const isAdmin = userProfile?.level === 'admin';
 
   return (
@@ -105,18 +106,22 @@ export default function SidebarNav() {
               </Link>
             </SidebarMenuItem>
           ))}
-          {isAdmin && (
-             <SidebarMenuItem>
-              <Link href={adminMenuItem.href}>
-                <SidebarMenuButton
-                  isActive={pathname === adminMenuItem.href}
-                  tooltip={adminMenuItem.label}
-                >
-                  <adminMenuItem.icon />
-                  <span>{adminMenuItem.label}</span>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
+          {isProfileLoading ? (
+            <SidebarMenuSkeleton showIcon />
+          ) : (
+            isAdmin && (
+              <SidebarMenuItem>
+                <Link href={adminMenuItem.href}>
+                  <SidebarMenuButton
+                    isActive={pathname === adminMenuItem.href}
+                    tooltip={adminMenuItem.label}
+                  >
+                    <adminMenuItem.icon />
+                    <span>{adminMenuItem.label}</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            )
           )}
         </SidebarMenu>
       </SidebarContent>
