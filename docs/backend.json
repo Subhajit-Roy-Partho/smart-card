@@ -238,6 +238,10 @@
         "benefits": {
           "type": "string",
           "description": "Benefits of the suggested credit card."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Background image URL for the credit card."
         }
       },
       "required": [

@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -22,9 +23,16 @@ import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
 import type { Card as CardType } from '@/lib/definitions';
 import { collection } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
+import { useActionState, useEffect, useRef } from 'react';
+import { suggestCard } from '@/actions/cards';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 export function CommunityCardSuggestion() {
   const { firestore, user } = useFirebase();
+  const { toast } = useToast();
+  const formRef = useRef<HTMLFormElement>(null);
+
   const cardsQuery = useMemoFirebase(
     () =>
       user && firestore
@@ -33,6 +41,27 @@ export function CommunityCardSuggestion() {
     [firestore, user]
   );
   const { data: cards, isLoading } = useCollection<CardType>(cardsQuery);
+  
+  const [suggestState, suggestAction, isSuggestPending] = useActionState(suggestCard, { success: false, message: '' });
+
+  useEffect(() => {
+    if (suggestState.message) {
+      if (suggestState.success) {
+        toast({
+          title: 'Success!',
+          description: suggestState.message,
+        });
+        formRef.current?.reset();
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: suggestState.message,
+        });
+      }
+    }
+  }, [suggestState, toast]);
+
 
   return (
     <Card>
@@ -90,26 +119,37 @@ export function CommunityCardSuggestion() {
             </form>
           </TabsContent>
           <TabsContent value="suggest-card" className="space-y-4 pt-4">
-            <form className="space-y-4">
+            <form ref={formRef} action={suggestAction} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="card-name">Card Name</Label>
                 <Input
                   id="card-name"
+                  name="card-name"
                   placeholder="e.g., Ultimate Rewards Card"
+                  required
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="card-issuer">Issuer</Label>
-                <Input id="card-issuer" placeholder="e.g., Global Bank" />
+                <Input 
+                  id="card-issuer" 
+                  name="card-issuer"
+                  placeholder="e.g., Global Bank" 
+                  required
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="card-image">Background Image URL</Label>
                 <Input
                   id="card-image"
+                  name="card-image"
                   placeholder="https://example.com/card-image.png"
                 />
               </div>
-              <Button>Submit Suggestion</Button>
+              <Button type="submit" disabled={isSuggestPending}>
+                {isSuggestPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Submit Suggestion
+              </Button>
             </form>
           </TabsContent>
         </Tabs>
