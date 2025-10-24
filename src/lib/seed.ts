@@ -1,7 +1,8 @@
+'use server';
+
 // A script to seed the database with initial data.
 // This is for demo purposes and would be replaced with real data in a production environment.
-'use server';
-import { initializeFirebase } from '@/firebase';
+import { initializeFirebaseAdmin } from '@/firebase/server-init';
 import {
   collection,
   doc,
@@ -102,15 +103,31 @@ const transactions = [
 ];
 
 const categories = [
-    { id: 'electronics', name: 'Electronics', description: 'Gadgets and devices.' },
-    { id: 'travel', name: 'Travel', description: 'Flights, hotels, and transportation.' },
-    { id: 'groceries', name: 'Groceries', description: 'Food and household supplies.' },
-    { id: 'software', name: 'Software', description: 'Subscriptions and licenses.' },
-    { id: 'business', name: 'Business', description: 'Office supplies and expenses.' },
+  {
+    id: 'electronics',
+    name: 'Electronics',
+    description: 'Gadgets and devices.',
+  },
+  { id: 'travel', name: 'Travel', description: 'Flights, hotels, and transportation.' },
+  {
+    id: 'groceries',
+    name: 'Groceries',
+    description: 'Food and household supplies.',
+  },
+  {
+    id: 'software',
+    name: 'Software',
+    description: 'Subscriptions and licenses.',
+  },
+  {
+    id: 'business',
+    name: 'Business',
+    description: 'Office supplies and expenses.',
+  },
 ];
 
 export async function seedDatabase(userId: string) {
-  const { firestore } = initializeFirebase();
+  const { firestore } = await initializeFirebaseAdmin();
   const batch = writeBatch(firestore);
 
   try {
@@ -127,11 +144,10 @@ export async function seedDatabase(userId: string) {
     // Seed Categories (globally)
     const categoriesRef = collection(firestore, 'categories');
     categories.forEach((category) => {
-        const categoryDoc = doc(categoriesRef, category.id);
-        batch.set(categoryDoc, category);
+      const categoryDoc = doc(categoriesRef, category.id);
+      batch.set(categoryDoc, category);
     });
     console.log('Seeding categories...');
-
 
     // Seed Credit Cards for the user
     cards.forEach((card) => {
@@ -139,15 +155,11 @@ export async function seedDatabase(userId: string) {
       batch.set(cardDoc, card);
 
       // Seed Transactions for each card
-      const cardTransactions = transactions.filter(
-        (t) => t.cardId === card.id
-      );
+      const cardTransactions = transactions.filter((t) => t.cardId === card.id);
       const transactionsRef = collection(cardDoc, 'transactions');
       cardTransactions.forEach((transaction) => {
         const transactionDoc = doc(transactionsRef, transaction.id);
-        // Ensure the transaction data matches the Firestore structure (using cardId, not creditCardId)
-        const { cardId, ...transactionData } = transaction;
-        batch.set(transactionDoc, { ...transactionData, creditCardId: cardId });
+        batch.set(transactionDoc, transaction);
       });
     });
     console.log('Seeding cards and transactions...');

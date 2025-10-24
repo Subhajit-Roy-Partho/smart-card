@@ -18,7 +18,7 @@ export type Card = {
 }
 
 export type Transaction = {
-  id: string
+  id: string;
   cardId: string;
   amount: number;
   outlet: string;
