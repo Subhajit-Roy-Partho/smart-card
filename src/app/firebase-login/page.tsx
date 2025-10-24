@@ -60,7 +60,7 @@ export default function FirebaseLoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   const handleAuthSuccess = async (userCredential: UserCredential) => {
-    await seedDatabase(userCredential.user.uid);
+    await seedDatabase(userCredential.user.uid, userCredential.user.email);
     // Use window.location.href for a full page reload to ensure middleware catches the session
     window.location.href = '/dashboard';
   };

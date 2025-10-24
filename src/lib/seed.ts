@@ -120,6 +120,8 @@ const categories = [
   },
 ];
 
+const adminEmails = ['test@example.com', 'me.subhajitroy1999@gmail.com'];
+
 async function seedGlobalData(batch: WriteBatch, firestore: FirebaseFirestore.Firestore) {
     // Seed Global Cards
     const cardsRef = firestore.collection('credit_cards');
@@ -143,7 +145,7 @@ async function seedGlobalData(batch: WriteBatch, firestore: FirebaseFirestore.Fi
 }
 
 
-export async function seedDatabase(userId: string) {
+export async function seedDatabase(userId: string, email: string | null) {
   const { firestore } = await initializeFirebaseAdmin();
   const batch: WriteBatch = firestore.batch();
 
@@ -166,12 +168,14 @@ export async function seedDatabase(userId: string) {
         console.log(`User ${userId} already exists. Skipping user seed.`);
     } else {
         console.log(`Seeding data for new user: ${userId}`);
+        const userLevel = email && adminEmails.includes(email) ? 'admin' : 'standard';
+
         // Create user profile
         batch.set(userDocRef, {
             id: userId,
-            email: `user-${userId}@example.com`, // Placeholder, should be updated with actual email
+            email: email || `user-${userId}@example.com`,
             name: `User ${userId}`, // Placeholder
-            level: 'standard',
+            level: userLevel,
             personalCards: [],
         });
 
@@ -180,7 +184,7 @@ export async function seedDatabase(userId: string) {
         const userOwnedCards = ['card-1', 'card-2'];
         userOwnedCards.forEach(cardId => {
             const cardTransactions = transactions.filter(t => t.cardId === cardId);
-            const transactionsRef = userDocRef.collection('transactions');
+            const transactionsRef = userDocRef.collection('credit_cards').doc(cardId).collection('transactions');
             cardTransactions.forEach(transaction => {
                 const transactionDoc = transactionsRef.doc(transaction.id);
                 batch.set(transactionDoc, {...transaction, userId: userId});
