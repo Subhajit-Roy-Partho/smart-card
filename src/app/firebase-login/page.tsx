@@ -67,6 +67,7 @@ export default function FirebaseLoginPage() {
 
   const handleSignUp = async () => {
     setError(null);
+    if (!auth) return;
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -81,6 +82,7 @@ export default function FirebaseLoginPage() {
 
   const handleSignIn = async () => {
     setError(null);
+    if (!auth) return;
     try {
       const userCredential = await signInWithEmailAndPassword(
         auth,
@@ -88,7 +90,8 @@ export default function FirebaseLoginPage() {
         password
       );
       // Even on sign-in, we call `handleAuthSuccess` which runs `seedDatabase`.
-      // The `seedDatabase` function is idempotent and will skip seeding if the user already exists.
+      // The `seedDatabase` function is idempotent and will skip seeding if the user already exists,
+      // but will create the DB entry if it's missing for an existing auth user.
       await handleAuthSuccess(userCredential);
     } catch (error: any) {
       // If sign-in fails because the user does not exist, try signing them up.
@@ -103,6 +106,7 @@ export default function FirebaseLoginPage() {
 
   const handleGoogleSignIn = async () => {
     setError(null);
+    if (!auth) return;
     try {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
