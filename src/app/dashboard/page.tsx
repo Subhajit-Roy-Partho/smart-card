@@ -10,7 +10,7 @@ import {
 import { OverviewChart } from '@/components/dashboard/overview-chart';
 import { RecentTransactions } from '@/components/dashboard/recent-transactions';
 import { CreditCard, DollarSign, TrendingDown, TrendingUp } from 'lucide-react';
-import { useCollection, useFirebase } from '@/firebase';
+import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { Card as CardType, Transaction } from '@/lib/definitions';
 import { useMemo } from 'react';
@@ -18,9 +18,9 @@ import { useMemo } from 'react';
 export default function DashboardPage() {
   const { firestore, user } = useFirebase();
 
-  const cardsQuery = useMemo(
+  const cardsQuery = useMemoFirebase(
     () =>
-      user
+      user && firestore
         ? collection(firestore, 'users', user.uid, 'credit_cards')
         : null,
     [firestore, user]
@@ -28,8 +28,8 @@ export default function DashboardPage() {
   const { data: cards, isLoading: cardsLoading } =
     useCollection<CardType>(cardsQuery);
 
-  const transactionsQuery = useMemo(() => {
-    if (!user || !cards || cards.length === 0) return null;
+  const transactionsQuery = useMemoFirebase(() => {
+    if (!user || !firestore || !cards || cards.length === 0) return null;
     // Note: Firestore doesn't support collection group queries with multiple `in` clauses
     // on different fields. A more scalable approach for a real app might involve
     // a single top-level 'transactions' collection with a 'userId' field.
