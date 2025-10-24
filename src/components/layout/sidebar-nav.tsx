@@ -15,10 +15,15 @@ import {
   CreditCard,
   Library,
   Lightbulb,
+  Shield,
   Target,
   Wallet,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useFirebase } from '@/firebase';
+import { useDoc, useMemoFirebase } from '@/firebase';
+import type { UserProfile } from '@/lib/definitions';
+import { doc } from 'firebase/firestore';
 
 const menuItems = [
   {
@@ -58,15 +63,31 @@ const menuItems = [
   },
 ];
 
+const adminMenuItem = {
+  href: '/dashboard/admin',
+  label: 'Admin',
+  icon: Shield,
+};
+
 export default function SidebarNav() {
   const pathname = usePathname();
+  const { firestore, user } = useFirebase();
+
+  const userProfileRef = useMemoFirebase(
+    () => (firestore && user ? doc(firestore, 'users', user.uid) : null),
+    [firestore, user]
+  );
+  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
+  const isAdmin = userProfile?.level === 'admin';
 
   return (
     <>
       <SidebarHeader>
         <div className="flex items-center gap-2">
           <Logo className="h-8 w-8 text-sidebar-primary" />
-          <span className="text-lg font-semibold text-chart-3">Smart Spend</span>
+          <span className="text-lg font-semibold text-chart-3">
+            Smart Spend
+          </span>
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2">
@@ -84,6 +105,19 @@ export default function SidebarNav() {
               </Link>
             </SidebarMenuItem>
           ))}
+          {isAdmin && (
+             <SidebarMenuItem>
+              <Link href={adminMenuItem.href}>
+                <SidebarMenuButton
+                  isActive={pathname === adminMenuItem.href}
+                  tooltip={adminMenuItem.label}
+                >
+                  <adminMenuItem.icon />
+                  <span>{adminMenuItem.label}</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarContent>
     </>
