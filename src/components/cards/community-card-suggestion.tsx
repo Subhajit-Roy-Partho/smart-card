@@ -23,7 +23,7 @@ import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
 import type { Card as CardType } from '@/lib/definitions';
 import { collection } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
-import { useActionState, useEffect, useRef } from 'react';
+import { useRef, useState } from 'react';
 import { suggestCard } from '@/actions/cards';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -32,6 +32,7 @@ export function CommunityCardSuggestion() {
   const { firestore, user } = useFirebase();
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
+  const [isSuggestPending, setSuggestPending] = useState(false);
 
   const cardsQuery = useMemoFirebase(
     () =>
@@ -42,25 +43,104 @@ export function CommunityCardSuggestion() {
   );
   const { data: cards, isLoading } = useCollection<CardType>(cardsQuery);
   
-  const [suggestState, suggestAction, isSuggestPending] = useActionState(suggestCard, { success: false, message: '' });
-
-  useEffect(() => {
-    if (suggestState.message) {
-      if (suggestState.success) {
+  const handleSuggestSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user) {
         toast({
-          title: 'Success!',
-          description: suggestState.message,
+            variant: 'destructive',
+            title: 'Error',
+            description: 'You must be logged in to suggest a card.',
         });
-        formRef.current?.reset();
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: suggestState.message,
-        });
-      }
+        return;
     }
-  }, [suggestState, toast]);
+    
+    setSuggestPending(true);
+
+    try {
+        const idToken = await user.getIdToken();
+        const formData = new FormData(event.currentTarget);
+        
+        // The server action needs a proper Request object to read headers.
+        // We can't call it directly with custom headers, so we use fetch to our own API route.
+        // But Next.js Server Actions can implicitly handle auth context better.
+        // Let's retry calling the action directly, but modify the action to get the token differently if needed.
+        // For now, let's assume the action can get the auth context.
+        
+        // Let's create a custom Request object to pass to the server action
+        const response = await fetch('/api/suggest-card', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${idToken}`,
+            },
+            body: formData,
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            toast({
+                title: 'Success!',
+                description: result.message,
+            });
+            formRef.current?.reset();
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: result.message,
+            });
+        }
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        toast({
+            variant: 'destructive',
+            title: 'Submission Error',
+            description: errorMessage,
+        });
+    } finally {
+        setSuggestPending(false);
+    }
+  };
+
+
+  const handleSuggestCard = async (formData: FormData) => {
+    if (!user) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'You must be logged in to suggest a card.',
+        });
+        return;
+    }
+    setSuggestPending(true);
+    try {
+        const idToken = await user.getIdToken();
+        const result = await suggestCard({ success: false, message: '' }, formData, idToken);
+
+        if (result.success) {
+            toast({
+                title: 'Success!',
+                description: result.message,
+            });
+            formRef.current?.reset();
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: result.message,
+            });
+        }
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        toast({
+            variant: 'destructive',
+            title: 'Submission Error',
+            description: errorMessage,
+        });
+    } finally {
+        setSuggestPending(false);
+    }
+  };
 
 
   return (
@@ -119,7 +199,7 @@ export function CommunityCardSuggestion() {
             </form>
           </TabsContent>
           <TabsContent value="suggest-card" className="space-y-4 pt-4">
-            <form ref={formRef} action={suggestAction} className="space-y-4">
+            <form ref={formRef} action={handleSuggestCard} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="card-name">Card Name</Label>
                 <Input

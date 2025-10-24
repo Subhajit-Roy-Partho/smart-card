@@ -4,7 +4,6 @@
 import { initializeFirebaseAdmin } from '@/firebase/server-init';
 import { revalidatePath } from 'next/cache';
 import { getAuth } from 'firebase-admin/auth';
-import { headers } from 'next/headers';
 import { getApp } from 'firebase-admin/app';
 
 type FormState = {
@@ -14,7 +13,8 @@ type FormState = {
 
 export async function suggestCard(
   prevState: FormState,
-  formData: FormData
+  formData: FormData,
+  idToken: string,
 ): Promise<FormState> {
   try {
     const { firestore } = await initializeFirebaseAdmin();
@@ -22,14 +22,13 @@ export async function suggestCard(
     const cardIssuer = formData.get('card-issuer') as string;
     const cardImage = formData.get('card-image') as string;
 
-    const authHeader = headers().get('Authorization');
-    if (!authHeader) {
+    if (!idToken) {
         return {
             success: false,
             message: 'User is not authenticated.',
         };
     }
-    const idToken = authHeader.split('Bearer ')[1];
+
     const decodedToken = await getAuth(getApp()).verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
