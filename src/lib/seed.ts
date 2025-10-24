@@ -8,6 +8,7 @@ import {
   CollectionReference,
   DocumentData,
   QuerySnapshot,
+  getFirestore,
 } from 'firebase-admin/firestore';
 
 const cards = [
@@ -129,11 +130,11 @@ export async function seedDatabase(userId: string) {
   const batch: WriteBatch = firestore.batch();
 
   try {
-    // Check if user already has data
-    const userCardsRef: CollectionReference<DocumentData> = firestore.collection(`users/${userId}/credit_cards`);
-    const existingCards: QuerySnapshot<DocumentData> = await userCardsRef.get();
+    // Check if user's data has already been seeded by checking for a marker document
+    const userSeedMarkerRef = firestore.doc(`users/${userId}/private/seed_marker`);
+    const seedMarkerDoc = await userSeedMarkerRef.get();
 
-    if (!existingCards.empty) {
+    if (seedMarkerDoc.exists) {
       console.log('User already has data. Skipping seed.');
       return { success: true, message: 'User already has data.' };
     }
@@ -152,6 +153,7 @@ export async function seedDatabase(userId: string) {
     console.log('Seeding categories...');
 
     // Seed Credit Cards for the user
+    const userCardsRef = firestore.collection(`users/${userId}/credit_cards`);
     cards.forEach((card) => {
       const cardDoc = userCardsRef.doc(card.id);
       batch.set(cardDoc, card);
@@ -165,6 +167,9 @@ export async function seedDatabase(userId: string) {
       });
     });
     console.log('Seeding cards and transactions...');
+    
+    // Set the marker so we don't seed again for this user
+    batch.set(userSeedMarkerRef, { seeded: true, timestamp: new Date() });
 
     await batch.commit();
     console.log('Database seeded successfully!');
