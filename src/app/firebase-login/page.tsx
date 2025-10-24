@@ -58,8 +58,9 @@ export default function FirebaseLoginPage() {
       );
       await handleAuthSuccess(userCredential);
     } catch (error: any) {
-      if (error.code === 'auth/user-not-found') {
-        // If user doesn't exist, sign them up
+      // If user doesn't exist or credential is wrong, just sign them up.
+      // This is a convenience for the demo app.
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
         await handleSignUp();
       } else {
         setError(error.message);
