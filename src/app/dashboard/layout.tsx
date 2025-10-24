@@ -13,14 +13,14 @@ export default function DashboardLayout({
 }) {
   return (
     <SidebarProvider>
-      <div className="min-h-screen">
+      <div className="min-h-screen md:flex">
         <Sidebar variant="inset" collapsible="icon">
           <SidebarNav />
         </Sidebar>
-        <SidebarInset>
+        <div className="flex flex-1 flex-col">
           <Header />
-          <main className="p-4 sm:p-6 lg:p-8">{children}</main>
-        </SidebarInset>
+          <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+        </div>
       </div>
     </SidebarProvider>
   );
