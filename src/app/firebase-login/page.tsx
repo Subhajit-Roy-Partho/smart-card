@@ -12,17 +12,151 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { useAuth } from '@/firebase';
-import { seedDatabase } from '@/lib/seed';
+import { useAuth, useFirestore } from '@/firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
+  User,
   UserCredential,
 } from 'firebase/auth';
+import { doc, getDoc, writeBatch } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useState, type SVGProps } from 'react';
+
+// --- Start of Client-Side Seeding Logic ---
+
+const cards = [
+  {
+    id: 'card-1',
+    name: 'Tech Rewards',
+    issuer: 'FinBank',
+    last4: '1234',
+    balance: 1250.75,
+    creditLimit: 5000,
+    apr: 18.99,
+    paymentDueDate: '2024-08-15',
+    color: 'hsl(var(--chart-1))',
+    imageUrl: 'https://picsum.photos/seed/1/600/400',
+  },
+  {
+    id: 'card-2',
+    name: 'Travel Points Plus',
+    issuer: 'Global Union',
+    last4: '5678',
+    balance: 342.11,
+    creditLimit: 10000,
+    apr: 15.49,
+    paymentDueDate: '2024-08-20',
+    color: 'hsl(var(--chart-2))',
+    imageUrl: 'https://picsum.photos/seed/2/600/400',
+  },
+  {
+    id: 'card-3',
+    name: 'Everyday Cash',
+    issuer: 'Capital Trust',
+    last4: '9012',
+    balance: 87.9,
+    creditLimit: 3000,
+    apr: 22.5,
+    paymentDueDate: '2024-08-25',
+    color: 'hsl(var(--chart-3))',
+    imageUrl: 'https://picsum.photos/seed/3/600/400',
+  },
+  {
+    id: 'card-4',
+    name: 'Business Pro',
+    issuer: 'Enterprise Bank',
+    last4: '3456',
+    balance: 4899.2,
+    creditLimit: 15000,
+    apr: 12.99,
+    paymentDueDate: '2024-09-01',
+    color: 'hsl(var(--chart-4))',
+    imageUrl: 'https://picsum.photos/seed/4/600/400',
+  },
+];
+
+const transactions = [
+  {
+    id: 'txn-1',
+    cardId: 'card-1',
+    amount: 799.99,
+    outlet: 'Apple Store',
+    categoryId: 'electronics',
+    date: '2024-07-20T10:00:00Z',
+  },
+  {
+    id: 'txn-2',
+    cardId: 'card-2',
+    amount: 120.5,
+    outlet: 'United Airlines',
+    categoryId: 'travel',
+    date: '2024-07-18T14:30:00Z',
+  },
+];
+
+const adminEmails = ['test@example.com', 'me.subhajitroy1999@gmail.com'];
+
+async function seedDatabase(firestore: any, user: User) {
+  if (!firestore || !user) return;
+
+  const userDocRef = doc(firestore, 'users', user.uid);
+  const userDoc = await getDoc(userDocRef);
+
+  if (userDoc.exists()) {
+    console.log(`User ${user.uid} already exists. Skipping seed.`);
+    return;
+  }
+
+  console.log(`Seeding data for new user: ${user.uid}`);
+  const batch = writeBatch(firestore);
+
+  try {
+    const userLevel =
+      user.email && adminEmails.includes(user.email) ? 'admin' : 'standard';
+
+    // 1. Create user profile
+    batch.set(userDocRef, {
+      id: user.uid,
+      email: user.email,
+      name: user.displayName || `User ${user.uid.substring(0, 5)}`,
+      level: userLevel,
+      personalCards: ['card-1', 'card-2'], // Pre-assign some cards
+    });
+
+    // 2. Add sample transactions for the user's cards
+    const userOwnedCards = ['card-1', 'card-2'];
+    userOwnedCards.forEach((cardId) => {
+      const cardTransactions = transactions.filter((t) => t.cardId === cardId);
+      cardTransactions.forEach((transaction) => {
+        const transactionDocRef = doc(
+          firestore,
+          'users',
+          user.uid,
+          'credit_cards',
+          cardId,
+          'transactions',
+          transaction.id
+        );
+        batch.set(transactionDocRef, { ...transaction, userId: user.uid });
+      });
+    });
+    
+    // In a real app, you might want to seed global collections like 'credit_cards'
+    // and 'categories' here as well, guarded by a marker document to run only once.
+    // For this demo, we assume they are seeded or will be managed elsewhere.
+
+    await batch.commit();
+    console.log('Database seeded successfully for user!');
+  } catch (error) {
+    console.error('Error seeding database:', error);
+  }
+}
+
+// --- End of Client-Side Seeding Logic ---
+
 
 function GoogleIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -55,12 +189,13 @@ function GoogleIcon(props: SVGProps<SVGSVGElement>) {
 
 export default function FirebaseLoginPage() {
   const auth = useAuth();
+  const firestore = useFirestore();
   const [email, setEmail] = useState('test@example.com');
   const [password, setPassword] = useState('password');
   const [error, setError] = useState<string | null>(null);
 
   const handleAuthSuccess = async (userCredential: UserCredential) => {
-    await seedDatabase(userCredential.user.uid, userCredential.user.email);
+    await seedDatabase(firestore, userCredential.user);
     // Use window.location.href for a full page reload to ensure middleware catches the session
     window.location.href = '/dashboard';
   };
