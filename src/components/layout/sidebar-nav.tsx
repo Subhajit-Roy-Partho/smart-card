@@ -62,7 +62,7 @@ export default function SidebarNav() {
       <SidebarHeader>
         <div className="flex items-center gap-2">
           <Logo className="h-8 w-8 text-primary" />
-          <span className="text-lg font-semibold">Smart Spend</span>
+          <span className="text-lg font-semibold text-chart-3">Smart Spend</span>
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2">
