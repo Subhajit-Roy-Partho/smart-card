@@ -87,11 +87,13 @@ export default function FirebaseLoginPage() {
         email,
         password
       );
+      // Even on sign-in, we call `handleAuthSuccess` which runs `seedDatabase`.
+      // The `seedDatabase` function is idempotent and will skip seeding if the user already exists.
       await handleAuthSuccess(userCredential);
     } catch (error: any) {
-      // If sign-in fails (user not found, wrong password, etc.), try signing up.
+      // If sign-in fails because the user does not exist, try signing them up.
       // This is a convenience for the demo app.
-      if (error.code) {
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
         await handleSignUp();
       } else {
         setError(error.message);
@@ -148,7 +150,7 @@ export default function FirebaseLoginPage() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
           <Button className="w-full" onClick={handleSignIn}>
-            Sign In with Email
+            Sign In / Sign Up
           </Button>
           <div className="relative w-full">
             <Separator className="absolute left-0 top-1/2 -translate-y-1/2" />
