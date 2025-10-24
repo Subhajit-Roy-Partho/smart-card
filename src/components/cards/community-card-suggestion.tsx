@@ -23,7 +23,7 @@ import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
 import type { Card as CardType } from '@/lib/definitions';
 import { collection } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
-import { useRef, useState } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { suggestCard } from '@/actions/cards';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -32,7 +32,7 @@ export function CommunityCardSuggestion() {
   const { firestore, user } = useFirebase();
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
-  const [isSuggestPending, setSuggestPending] = useState(false);
+  const [isSuggestPending, startSuggestTransition] = useTransition();
 
   const cardsQuery = useMemoFirebase(
     () =>
@@ -43,103 +43,48 @@ export function CommunityCardSuggestion() {
   );
   const { data: cards, isLoading } = useCollection<CardType>(cardsQuery);
   
-  const handleSuggestSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!user) {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'You must be logged in to suggest a card.',
-        });
-        return;
-    }
-    
-    setSuggestPending(true);
-
-    try {
-        const idToken = await user.getIdToken();
-        const formData = new FormData(event.currentTarget);
-        
-        // The server action needs a proper Request object to read headers.
-        // We can't call it directly with custom headers, so we use fetch to our own API route.
-        // But Next.js Server Actions can implicitly handle auth context better.
-        // Let's retry calling the action directly, but modify the action to get the token differently if needed.
-        // For now, let's assume the action can get the auth context.
-        
-        // Let's create a custom Request object to pass to the server action
-        const response = await fetch('/api/suggest-card', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${idToken}`,
-            },
-            body: formData,
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            toast({
-                title: 'Success!',
-                description: result.message,
-            });
-            formRef.current?.reset();
-        } else {
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: result.message,
-            });
-        }
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        toast({
-            variant: 'destructive',
-            title: 'Submission Error',
-            description: errorMessage,
-        });
-    } finally {
-        setSuggestPending(false);
-    }
-  };
-
-
   const handleSuggestCard = async (formData: FormData) => {
     if (!user) {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'You must be logged in to suggest a card.',
-        });
-        return;
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'You must be logged in to suggest a card.',
+      });
+      return;
     }
-    setSuggestPending(true);
-    try {
+
+    startSuggestTransition(async () => {
+      try {
         const idToken = await user.getIdToken();
-        const result = await suggestCard({ success: false, message: '' }, formData, idToken);
+        const result = await suggestCard(
+          { success: false, message: '' },
+          formData,
+          idToken
+        );
 
         if (result.success) {
-            toast({
-                title: 'Success!',
-                description: result.message,
-            });
-            formRef.current?.reset();
+          toast({
+            title: 'Success!',
+            description: result.message,
+          });
+          formRef.current?.reset();
         } else {
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: result.message,
-            });
-        }
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        toast({
+          toast({
             variant: 'destructive',
-            title: 'Submission Error',
-            description: errorMessage,
+            title: 'Error',
+            description: result.message,
+          });
+        }
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'An unknown error occurred.';
+        toast({
+          variant: 'destructive',
+          title: 'Submission Error',
+          description: errorMessage,
         });
-    } finally {
-        setSuggestPending(false);
-    }
+      }
+    });
   };
 
 

@@ -14,7 +14,7 @@ type FormState = {
 export async function suggestCard(
   prevState: FormState,
   formData: FormData,
-  idToken: string,
+  idToken: string
 ): Promise<FormState> {
   try {
     const { firestore } = await initializeFirebaseAdmin();
@@ -23,15 +23,11 @@ export async function suggestCard(
     const cardImage = formData.get('card-image') as string;
 
     if (!idToken) {
-        return {
-            success: false,
-            message: 'User is not authenticated.',
-        };
+      return {
+        success: false,
+        message: 'User is not authenticated.',
+      };
     }
-
-    const decodedToken = await getAuth(getApp()).verifyIdToken(idToken);
-    const userId = decodedToken.uid;
-
 
     if (!cardName || !cardIssuer) {
       return {
@@ -40,21 +36,29 @@ export async function suggestCard(
       };
     }
 
+    const decodedToken = await getAuth(getApp()).verifyIdToken(idToken);
+    const userId = decodedToken.uid;
+
     const docData = {
-        name: cardName,
-        issuer: cardIssuer,
-        benefits: '', // Added to match schema
-        userId: userId,
-        createdAt: new Date(),
+      name: cardName,
+      issuer: cardIssuer,
+      benefits: '', // Added to match schema
+      userId: userId,
+      createdAt: new Date(),
     };
 
     if (cardImage) {
-        (docData as any).imageUrl = cardImage;
+      (docData as any).imageUrl = cardImage;
     }
 
-    const newSuggestionRef = await firestore.collection('suggested_cards').add(docData);
-    
-    await firestore.collection('suggested_cards').doc(newSuggestionRef.id).update({ id: newSuggestionRef.id });
+    const newSuggestionRef = await firestore
+      .collection('suggested_cards')
+      .add(docData);
+
+    await firestore
+      .collection('suggested_cards')
+      .doc(newSuggestionRef.id)
+      .update({ id: newSuggestionRef.id });
 
     revalidatePath('/dashboard/cards');
     return {
