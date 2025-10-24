@@ -20,13 +20,12 @@ import {
 } from '@/components/ui/select';
 import { useCollection, useFirebase, useMemoFirebase, useStorage } from '@/firebase';
 import type { Card as CardType } from '@/lib/definitions';
-import { collection } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
 import { useRef, useState, useTransition } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import {
-  getStorage,
   ref as storageRef,
   uploadBytesResumable,
   getDownloadURL,
@@ -95,7 +94,7 @@ export function CommunityCardSuggestion() {
 
   const handleSuggestCard = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!user) {
+    if (!user || !firestore) {
       toast({
         variant: 'destructive',
         title: 'Authentication Error',
@@ -105,38 +104,45 @@ export function CommunityCardSuggestion() {
     }
 
     const formData = new FormData(event.currentTarget);
+    const cardName = formData.get('card-name') as string;
+    const cardIssuer = formData.get('card-issuer') as string;
+    // The `imageUrl` state variable holds the URL from either upload or manual input.
+    const finalImageUrl = imageUrl;
+
+    if (!cardName || !cardIssuer) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Information',
+        description: 'Please provide both card name and issuer.',
+      });
+      return;
+    }
 
     startSuggestTransition(async () => {
       try {
-        const idToken = await user.getIdToken();
-        // Manually set the imageUrl if it was uploaded
-        if (imageUrl) {
-            formData.set('card-image', imageUrl);
-        }
-        
-        const response = await fetch('/api/suggest-card', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: formData,
+        const docData = {
+          name: cardName,
+          issuer: cardIssuer,
+          benefits: '',
+          userId: user.uid,
+          createdAt: serverTimestamp(),
+          imageUrl: finalImageUrl || '',
+        };
+
+        const suggestedCardsCollection = collection(firestore, 'suggested_cards');
+        await addDoc(suggestedCardsCollection, docData);
+
+        toast({
+          title: 'Success!',
+          description: 'Card suggestion submitted for review.',
         });
+        formRef.current?.reset();
+        setImageUrl('');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        setUploadProgress(0);
 
-        const result = await response.json();
-
-        if (response.ok) {
-          toast({
-            title: 'Success!',
-            description: result.message,
-          });
-          formRef.current?.reset();
-          setImageUrl('');
-          if(fileInputRef.current) fileInputRef.current.value = '';
-          setUploadProgress(0);
-        } else {
-          throw new Error(result.message || 'An unknown error occurred.');
-        }
       } catch (error) {
+        console.error("Error submitting suggestion:", error);
         const errorMessage =
           error instanceof Error ? error.message : 'An unknown error occurred.';
         toast({
@@ -158,7 +164,7 @@ export function CommunityCardSuggestion() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="add-benefit">
+        <Tabs defaultValue="suggest-card">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="add-benefit">Add a Benefit</TabsTrigger>
             <TabsTrigger value="suggest-card">Suggest a Card</TabsTrigger>
@@ -223,8 +229,7 @@ export function CommunityCardSuggestion() {
                   required
                 />
               </div>
-              <input type="hidden" name="card-image" value={imageUrl} />
-
+              
               <Tabs defaultValue="url" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="upload">Upload Image</TabsTrigger>
@@ -242,6 +247,7 @@ export function CommunityCardSuggestion() {
                       id="card-image-url"
                       name="card-image-url"
                       placeholder="https://example.com/card-image.png"
+                      value={imageUrl}
                       onChange={(e) => setImageUrl(e.target.value)}
                       disabled={isUploading}
                     />
