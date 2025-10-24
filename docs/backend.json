@@ -8,37 +8,39 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the user profile."
-        },
-        "auth0Id": {
-          "type": "string",
-          "description": "The user's ID from Auth0."
+          "description": "Unique identifier for the user profile, matching the Firebase Auth UID."
         },
         "email": {
           "type": "string",
           "description": "User's email address.",
           "format": "email"
         },
-        "firstName": {
+        "name": {
           "type": "string",
-          "description": "User's first name."
+          "description": "User's full name."
         },
-        "lastName": {
+        "level": {
           "type": "string",
-          "description": "User's last name."
+          "description": "User's access level.",
+          "enum": [
+            "admin",
+            "standard",
+            "outsider"
+          ]
         },
-        "role": {
-          "type": "string",
-          "description": "User's role (admin, maintainer, standard, outsider)."
+        "personalCards": {
+          "type": "array",
+          "description": "An array of credit card IDs that the user owns.",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
         "id",
-        "auth0Id",
         "email",
-        "firstName",
-        "lastName",
-        "role"
+        "name",
+        "level"
       ]
     },
     "CreditCard": {

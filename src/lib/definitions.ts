@@ -1,8 +1,8 @@
 export type User = {
   name: string
   email: string
-  // This role is no longer managed by our app, but by Auth0
-  role?: 'admin' | 'maintainer' | 'standard' | 'outsider'
+  level?: 'admin' | 'standard' | 'outsider'
+  personalCards?: string[]
 }
 
 export type Card = {
@@ -42,3 +42,5 @@ export type Reminder = {
   title: string
   dueDate: string
 }
+
+    
