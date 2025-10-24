@@ -16,11 +16,24 @@ import {
 import Link from 'next/link';
 import { getSession } from '@auth0/nextjs-auth0/edge';
 
-export async function UserNav() {
-  const session = await getSession();
-  if (!session) return null;
+const mockUser = {
+  name: 'Test User',
+  email: 'test@example.com',
+  picture: 'https://picsum.photos/seed/test-user/100/100',
+};
 
-  const { user } = session;
+export async function UserNav() {
+  let user;
+
+  if (process.env.TEST === '1') {
+    user = mockUser;
+  } else {
+    const session = await getSession();
+    if (!session) return null;
+    user = session.user;
+  }
+  
+  if (!user) return null;
 
   return (
     <DropdownMenu>
@@ -49,7 +62,7 @@ export async function UserNav() {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-             <a href="/api/auth/logout" className="w-full text-left">Log out</a>
+             <a href={process.env.TEST === '1' ? '#' : "/api/auth/logout"} className="w-full text-left">Log out</a>
           </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
