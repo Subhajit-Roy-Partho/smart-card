@@ -11,15 +11,47 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/firebase';
 import { seedDatabase } from '@/lib/seed';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
   UserCredential,
 } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, type SVGProps } from 'react';
+
+function GoogleIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 48 48"
+      width="24px"
+      height="24px"
+      {...props}
+    >
+      <path
+        fill="#FFC107"
+        d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
+      />
+      <path
+        fill="#FF3D00"
+        d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"
+      />
+      <path
+        fill="#4CAF50"
+        d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"
+      />
+      <path
+        fill="#1976D2"
+        d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C39.901,36.639,44,30.836,44,24C44,22.659,43.862,21.35,43.611,20.083z"
+      />
+    </svg>
+  );
+}
 
 export default function FirebaseLoginPage() {
   const auth = useAuth();
@@ -29,7 +61,6 @@ export default function FirebaseLoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   const handleAuthSuccess = async (userCredential: UserCredential) => {
-    // Seed database for the new or existing user
     await seedDatabase(userCredential.user.uid);
     router.push('/dashboard');
   };
@@ -58,13 +89,25 @@ export default function FirebaseLoginPage() {
       );
       await handleAuthSuccess(userCredential);
     } catch (error: any) {
-      // If user doesn't exist or credential is wrong, just sign them up.
-      // This is a convenience for the demo app.
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+      if (
+        error.code === 'auth/user-not-found' ||
+        error.code === 'auth/invalid-credential'
+      ) {
         await handleSignUp();
       } else {
         setError(error.message);
       }
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    try {
+      const provider = new GoogleAuthProvider();
+      const userCredential = await signInWithPopup(auth, provider);
+      await handleAuthSuccess(userCredential);
+    } catch (error: any) {
+      setError(error.message);
     }
   };
 
@@ -77,7 +120,7 @@ export default function FirebaseLoginPage() {
             Welcome to Smart Spend
           </CardTitle>
           <CardDescription>
-            Sign in with your Firebase account to continue.
+            Sign in or create an account to continue.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -102,17 +145,33 @@ export default function FirebaseLoginPage() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-           {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
           <Button className="w-full" onClick={handleSignIn}>
-            Sign In / Sign Up
+            Sign In with Email
           </Button>
-          <p className="text-xs text-muted-foreground">
-            Use test@example.com / password, or any other email.
+          <div className="relative w-full">
+            <Separator className="absolute left-0 top-1/2 -translate-y-1/2" />
+            <span className="relative z-10 mx-auto flex w-fit bg-card px-2 text-xs uppercase text-muted-foreground">
+              Or continue with
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleGoogleSignIn}
+          >
+            <GoogleIcon className="mr-2 h-5 w-5" />
+            Google
+          </Button>
+          <p className="px-8 text-center text-xs text-muted-foreground">
+            Use test@example.com / password, or sign in with Google.
           </p>
         </CardFooter>
       </Card>
     </div>
   );
 }
+
+    
