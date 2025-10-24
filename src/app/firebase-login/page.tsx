@@ -55,14 +55,14 @@ function GoogleIcon(props: SVGProps<SVGSVGElement>) {
 
 export default function FirebaseLoginPage() {
   const auth = useAuth();
-  const router = useRouter();
   const [email, setEmail] = useState('test@example.com');
   const [password, setPassword] = useState('password');
   const [error, setError] = useState<string | null>(null);
 
   const handleAuthSuccess = async (userCredential: UserCredential) => {
     await seedDatabase(userCredential.user.uid);
-    router.push('/dashboard');
+    // Use window.location.href for a full page reload to ensure middleware catches the session
+    window.location.href = '/dashboard';
   };
 
   const handleSignUp = async () => {
@@ -89,10 +89,9 @@ export default function FirebaseLoginPage() {
       );
       await handleAuthSuccess(userCredential);
     } catch (error: any) {
-      if (
-        error.code === 'auth/user-not-found' ||
-        error.code === 'auth/invalid-credential'
-      ) {
+      // If sign-in fails (user not found, wrong password, etc.), try signing up.
+      // This is a convenience for the demo app.
+      if (error.code) {
         await handleSignUp();
       } else {
         setError(error.message);
@@ -173,5 +172,3 @@ export default function FirebaseLoginPage() {
     </div>
   );
 }
-
-    
