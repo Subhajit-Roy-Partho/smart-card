@@ -7,17 +7,18 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { useCollection, useFirebase } from '@/firebase';
+import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
 import type { Card as CardType } from '@/lib/definitions';
 import { collection } from 'firebase/firestore';
-import { useMemo } from 'react';
 import { Skeleton } from '../ui/skeleton';
 
 export function BalanceDisplay() {
   const { firestore, user } = useFirebase();
-  const cardsQuery = useMemo(
+  const cardsQuery = useMemoFirebase(
     () =>
-      user ? collection(firestore, 'users', user.uid, 'credit_cards') : null,
+      user && firestore
+        ? collection(firestore, 'users', user.uid, 'credit_cards')
+        : null,
     [firestore, user]
   );
   const { data: cards, isLoading } = useCollection<CardType>(cardsQuery);
