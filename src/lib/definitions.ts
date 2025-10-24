@@ -19,12 +19,14 @@ export type Card = {
 
 export type Transaction = {
   id: string
-  cardId: string
-  amount: number
-  description: string
-  category: string
-  date: string
-}
+  cardId: string;
+  creditCardId: string;
+  amount: number;
+  outlet: string;
+  categoryId: string;
+  date: string;
+};
+
 
 export type Goal = {
   id: string

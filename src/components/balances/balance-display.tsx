@@ -1,3 +1,4 @@
+'use client';
 import {
   Card,
   CardContent,
@@ -6,9 +7,21 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { cards } from '@/lib/data';
+import { useCollection, useFirebase } from '@/firebase';
+import type { Card as CardType } from '@/lib/definitions';
+import { collection } from 'firebase/firestore';
+import { useMemo } from 'react';
+import { Skeleton } from '../ui/skeleton';
 
 export function BalanceDisplay() {
+  const { firestore, user } = useFirebase();
+  const cardsQuery = useMemo(
+    () =>
+      user ? collection(firestore, 'users', user.uid, 'credit_cards') : null,
+    [firestore, user]
+  );
+  const { data: cards, isLoading } = useCollection<CardType>(cardsQuery);
+
   return (
     <Card>
       <CardHeader>
@@ -18,25 +31,58 @@ export function BalanceDisplay() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {cards.map((card) => {
-          const utilization = (card.balance / card.creditLimit) * 100;
-          return (
-            <div key={card.id}>
-              <div className="flex justify-between mb-1">
-                <span className="font-medium">{card.name} ({card.last4})</span>
-                <span className="text-muted-foreground">
-                  ${card.balance.toLocaleString()} / ${card.creditLimit.toLocaleString()}
-                </span>
+        {isLoading && (
+          <>
+            <BalanceSkeleton />
+            <BalanceSkeleton />
+            <BalanceSkeleton />
+          </>
+        )}
+        {!isLoading &&
+          cards &&
+          cards.map((card) => {
+            const utilization = (card.balance / card.creditLimit) * 100;
+            return (
+              <div key={card.id}>
+                <div className="mb-1 flex justify-between">
+                  <span className="font-medium">
+                    {card.name} ({card.last4})
+                  </span>
+                  <span className="text-muted-foreground">
+                    ${card.balance.toLocaleString()} / $
+                    {card.creditLimit.toLocaleString()}
+                  </span>
+                </div>
+                <Progress value={utilization} />
+                <div className="mt-1 flex justify-between">
+                  <span className="text-xs text-muted-foreground">
+                    APR: {card.apr}%
+                  </span>
+                  <span className="text-xs font-medium">
+                    {utilization.toFixed(1)}% Used
+                  </span>
+                </div>
               </div>
-              <Progress value={utilization} />
-              <div className="flex justify-between mt-1">
-                <span className="text-xs text-muted-foreground">APR: {card.apr}%</span>
-                <span className="text-xs font-medium">{utilization.toFixed(1)}% Used</span>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        {!isLoading && (!cards || cards.length === 0) && (
+            <p className="text-center text-muted-foreground">No cards found.</p>
+        )}
       </CardContent>
     </Card>
   );
 }
+
+const BalanceSkeleton = () => (
+    <div>
+        <div className="mb-1 flex justify-between">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-5 w-24" />
+        </div>
+        <Skeleton className="h-4 w-full" />
+        <div className="mt-1 flex justify-between">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-16" />
+        </div>
+    </div>
+)

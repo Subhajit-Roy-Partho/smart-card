@@ -3,6 +3,8 @@ import { Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { UserProvider } from '@auth0/nextjs-auth0/client';
+import { FirebaseClientProvider } from '@/firebase';
+import { cn } from '@/lib/utils';
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -19,7 +21,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
+  const authProvider = process.env.AUTH;
+
+  const mainContent = (
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -33,12 +37,21 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className={`font-body antialiased ${spaceGrotesk.variable}`}>
-        <UserProvider>
-          {children}
-        </UserProvider>
+      <body
+        className={cn(
+          'min-h-screen bg-background font-body antialiased',
+          spaceGrotesk.variable
+        )}
+      >
+        {children}
         <Toaster />
       </body>
     </html>
   );
+
+  if (authProvider === 'firebase') {
+    return <FirebaseClientProvider>{mainContent}</FirebaseClientProvider>;
+  }
+
+  return <UserProvider>{mainContent}</UserProvider>;
 }

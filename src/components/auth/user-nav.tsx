@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Avatar,
   AvatarFallback,
@@ -14,25 +16,27 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
-import { getSession } from '@auth0/nextjs-auth0/edge';
+import { useUser as useAuth0User } from '@auth0/nextjs-auth0/client';
+import { useUser as useFirebaseUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
-const mockUser = {
-  name: 'Test User',
-  email: 'test@example.com',
-  picture: 'https://picsum.photos/seed/test-user/100/100',
-};
+export function UserNav() {
+  const authProvider = process.env.NEXT_PUBLIC_AUTH_PROVIDER;
+  const router = useRouter();
 
-export async function UserNav() {
-  let user;
-
-  if (process.env.TEST === '1') {
-    user = mockUser;
-  } else {
-    const session = await getSession();
-    if (!session) return null;
-    user = session.user;
+  if (authProvider === 'firebase') {
+    return <FirebaseUserNav />;
   }
   
+  return <Auth0UserNav />;
+}
+
+function Auth0UserNav() {
+  const { user, error, isLoading } = useAuth0User();
+
+  if (isLoading) return <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />;
+  if (error) return <div>Error: {error.message}</div>;
   if (!user) return null;
 
   return (
@@ -62,8 +66,56 @@ export async function UserNav() {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-             <a href={process.env.TEST === '1' ? '#' : "/api/auth/logout"} className="w-full text-left">Log out</a>
+             <a href="/api/auth/logout" className="w-full text-left">Log out</a>
           </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+
+function FirebaseUserNav() {
+  const { user, isUserLoading } = useFirebaseUser();
+  const auth = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  };
+
+  if (isUserLoading) return <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />;
+  if (!user) return null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+          <Avatar className="h-8 w-8">
+            {user.photoURL && <AvatarImage src={user.photoURL} alt={user.displayName || 'User avatar'} />}
+            <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">{user.displayName || 'User'}</p>
+            <p className="text-xs leading-none text-muted-foreground">
+              {user.email}
+            </p>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/settings">Settings</Link>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+          Log out
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
