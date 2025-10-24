@@ -17,6 +17,7 @@ import { testAiConnection } from '@/actions/test-ai';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { PersonalCards } from '@/components/settings/personal-cards';
+import { RoleManager } from '@/components/settings/role-manager';
 
 type TestState = {
   status: 'idle' | 'pending' | 'success' | 'error';
@@ -50,6 +51,7 @@ export default function SettingsPage() {
           Manage your account and application settings.
         </p>
       </div>
+      <RoleManager />
       <PersonalCards />
       <Card>
         <CardHeader>
