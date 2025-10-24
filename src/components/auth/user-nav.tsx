@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -23,12 +24,11 @@ import { useRouter } from 'next/navigation';
 
 export function UserNav() {
   const authProvider = process.env.NEXT_PUBLIC_AUTH_PROVIDER;
-  const router = useRouter();
 
   if (authProvider === 'firebase') {
     return <FirebaseUserNav />;
   }
-  
+
   return <Auth0UserNav />;
 }
 
@@ -37,6 +37,8 @@ function Auth0UserNav() {
 
   if (isLoading) return <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />;
   if (error) return <div>Error: {error.message}</div>;
+  
+  // Do not render if not logged in.
   if (!user) return null;
 
   return (
