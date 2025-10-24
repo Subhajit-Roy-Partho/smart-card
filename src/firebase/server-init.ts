@@ -30,16 +30,17 @@ async function initializeFirebaseAdmin() {
         });
       } catch (error) {
         console.error(
-          'Failed to parse FIREBASE_SERVICE_ACCOUNT. Initializing without credentials.',
+          'Failed to parse FIREBASE_SERVICE_ACCOUNT. Initializing without credentials, but with correct project ID.',
           error
         );
+        // This will rely on Application Default Credentials (ADC) if available, but scoped to the correct project.
         app = initializeApp({ projectId: CORRECT_PROJECT_ID });
       }
     } else {
       console.warn(
-        'FIREBASE_SERVICE_ACCOUNT not set. Initializing without credentials. Admin features will not work.'
+        'FIREBASE_SERVICE_ACCOUNT not set. Initializing without credentials. Admin features may not work without ADC.'
       );
-      // This will rely on Application Default Credentials (ADC) if available.
+      // This will rely on Application Default Credentials (ADC) if available, but scoped to the correct project.
       app = initializeApp({ projectId: CORRECT_PROJECT_ID });
     }
   } else {
