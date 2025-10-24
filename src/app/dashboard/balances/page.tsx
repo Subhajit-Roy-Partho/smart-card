@@ -6,7 +6,7 @@ export default function BalancesPage() {
   return (
     <div className="flex w-full flex-col space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Balance Management</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-white">Balance Management</h1>
         <p className="text-muted-foreground">
           Track your balances and get advice on consolidation.
         </p>
