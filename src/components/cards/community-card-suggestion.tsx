@@ -93,7 +93,7 @@ export function CommunityCardSuggestion() {
     );
   };
 
-  const handleSuggestCard = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSuggestCard = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user) {
       toast({
@@ -104,10 +104,11 @@ export function CommunityCardSuggestion() {
       return;
     }
 
+    const formData = new FormData(event.currentTarget);
+
     startSuggestTransition(async () => {
       try {
         const idToken = await user.getIdToken();
-        const formData = new FormData(event.currentTarget);
         // Manually set the imageUrl if it was uploaded
         if (imageUrl) {
             formData.set('card-image', imageUrl);
