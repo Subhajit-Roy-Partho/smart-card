@@ -18,19 +18,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirebase, useMemoFirebase, useStorage } from '@/firebase';
 import type { Card as CardType } from '@/lib/definitions';
 import { collection } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
 import { useRef, useState, useTransition } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import {
+  getStorage,
+  ref as storageRef,
+  uploadBytesResumable,
+  getDownloadURL,
+} from 'firebase/storage';
+import { Progress } from '../ui/progress';
 
 export function CommunityCardSuggestion() {
   const { firestore, user } = useFirebase();
+  const storage = useStorage();
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const [isSuggestPending, startSuggestTransition] = useTransition();
+
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const cardsQuery = useMemoFirebase(
     () =>
@@ -41,6 +54,45 @@ export function CommunityCardSuggestion() {
   );
   const { data: cards, isLoading } = useCollection<CardType>(cardsQuery);
   
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    const fileId = `${user.uid}-${Date.now()}-${file.name}`;
+    const sRef = storageRef(storage, `card-suggestions/${fileId}`);
+    const uploadTask = uploadBytesResumable(sRef, file);
+
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setUploadProgress(progress);
+      },
+      (error) => {
+        console.error("Upload failed:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Upload Failed',
+          description: 'Could not upload image. Please try again.',
+        });
+        setIsUploading(false);
+      },
+      () => {
+        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+          setImageUrl(downloadURL);
+          setIsUploading(false);
+          toast({
+            title: 'Upload Complete',
+            description: 'Image ready to be submitted.',
+          });
+        });
+      }
+    );
+  };
+
   const handleSuggestCard = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user) {
@@ -56,6 +108,10 @@ export function CommunityCardSuggestion() {
       try {
         const idToken = await user.getIdToken();
         const formData = new FormData(event.currentTarget);
+        // Manually set the imageUrl if it was uploaded
+        if (imageUrl) {
+            formData.set('card-image', imageUrl);
+        }
         
         const response = await fetch('/api/suggest-card', {
           method: 'POST',
@@ -73,6 +129,9 @@ export function CommunityCardSuggestion() {
             description: result.message,
           });
           formRef.current?.reset();
+          setImageUrl('');
+          if(fileInputRef.current) fileInputRef.current.value = '';
+          setUploadProgress(0);
         } else {
           throw new Error(result.message || 'An unknown error occurred.');
         }
@@ -87,7 +146,6 @@ export function CommunityCardSuggestion() {
       }
     });
   };
-
 
   return (
     <Card>
@@ -144,7 +202,7 @@ export function CommunityCardSuggestion() {
               <Button>Add Benefit</Button>
             </form>
           </TabsContent>
-          <TabsContent value="suggest-card" className="space-y-4 pt-4">
+          <TabsContent value="suggest-card" className="pt-4">
             <form ref={formRef} onSubmit={handleSuggestCard} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="card-name">Card Name</Label>
@@ -164,16 +222,33 @@ export function CommunityCardSuggestion() {
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="card-image">Background Image URL</Label>
-                <Input
-                  id="card-image"
-                  name="card-image"
-                  placeholder="https://example.com/card-image.png"
-                />
-              </div>
-              <Button type="submit" disabled={isSuggestPending}>
-                {isSuggestPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <input type="hidden" name="card-image" value={imageUrl} />
+
+              <Tabs defaultValue="url" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="upload">Upload Image</TabsTrigger>
+                    <TabsTrigger value="url">Image URL</TabsTrigger>
+                </TabsList>
+                <TabsContent value="upload" className="space-y-2 pt-4">
+                    <Label htmlFor="card-image-file">Card Background Image</Label>
+                    <Input id="card-image-file" type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} disabled={isUploading} />
+                    {isUploading && <Progress value={uploadProgress} className="w-full" />}
+                    {uploadProgress === 100 && imageUrl && <p className='text-sm text-green-600'>Upload successful!</p>}
+                </TabsContent>
+                <TabsContent value="url" className="space-y-2 pt-4">
+                    <Label htmlFor="card-image-url">Background Image URL</Label>
+                    <Input
+                      id="card-image-url"
+                      name="card-image-url"
+                      placeholder="https://example.com/card-image.png"
+                      onChange={(e) => setImageUrl(e.target.value)}
+                      disabled={isUploading}
+                    />
+                </TabsContent>
+              </Tabs>
+
+              <Button type="submit" disabled={isSuggestPending || isUploading}>
+                {(isSuggestPending || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Submit Suggestion
               </Button>
             </form>
