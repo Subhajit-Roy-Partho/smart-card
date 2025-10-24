@@ -17,6 +17,7 @@ export type Card = {
   apr: number
   paymentDueDate: string
   color: string
+  imageUrl: string;
 }
 
 export type Transaction = {

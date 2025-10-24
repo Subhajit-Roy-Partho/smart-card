@@ -17,6 +17,7 @@ const cards = [
     apr: 18.99,
     paymentDueDate: '2024-08-15',
     color: 'hsl(var(--chart-1))',
+    imageUrl: 'https://picsum.photos/seed/1/600/400',
   },
   {
     id: 'card-2',
@@ -28,6 +29,7 @@ const cards = [
     apr: 15.49,
     paymentDueDate: '2024-08-20',
     color: 'hsl(var(--chart-2))',
+    imageUrl: 'https://picsum.photos/seed/2/600/400',
   },
   {
     id: 'card-3',
@@ -39,6 +41,7 @@ const cards = [
     apr: 22.5,
     paymentDueDate: '2024-08-25',
     color: 'hsl(var(--chart-3))',
+    imageUrl: 'https://picsum.photos/seed/3/600/400',
   },
   {
     id: 'card-4',
@@ -50,6 +53,7 @@ const cards = [
     apr: 12.99,
     paymentDueDate: '2024-09-01',
     color: 'hsl(var(--chart-4))',
+    imageUrl: 'https://picsum.photos/seed/4/600/400',
   },
 ];
 

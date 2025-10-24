@@ -13,9 +13,8 @@ import {
   BarChart2,
   Bell,
   CreditCard,
-  HeartHandshake,
+  Library,
   Lightbulb,
-  Settings,
   Target,
   Wallet,
 } from 'lucide-react';
@@ -31,6 +30,11 @@ const menuItems = [
     href: '/dashboard/cards',
     label: 'Card Suggestions',
     icon: CreditCard,
+  },
+  {
+    href: '/dashboard/all-cards',
+    label: 'All Cards',
+    icon: Library,
   },
   {
     href: '/dashboard/balances',
