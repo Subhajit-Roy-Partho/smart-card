@@ -4,6 +4,8 @@
 import { initializeFirebaseAdmin } from '@/firebase/server-init';
 import { revalidatePath } from 'next/cache';
 import { getAuth } from 'firebase-admin/auth';
+import { headers } from 'next/headers';
+import { getApp } from 'firebase-admin/app';
 
 type FormState = {
   success: boolean;
@@ -14,30 +16,46 @@ export async function suggestCard(
   prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const { firestore } = await initializeFirebaseAdmin();
-  const cardName = formData.get('card-name') as string;
-  const cardIssuer = formData.get('card-issuer') as string;
-  const cardImage = formData.get('card-image') as string;
-
-  // This is a placeholder for getting the current user's ID
-  // In a real app, you'd get this from the session
-  const userId = 'anonymous-user'; 
-
-  if (!cardName || !cardIssuer) {
-    return {
-      success: false,
-      message: 'Card Name and Issuer are required.',
-    };
-  }
-
   try {
-    await firestore.collection('suggested_cards').add({
-      name: cardName,
-      issuer: cardIssuer,
-      imageUrl: cardImage,
-      userId: userId,
-      createdAt: new Date(),
-    });
+    const { firestore } = await initializeFirebaseAdmin();
+    const cardName = formData.get('card-name') as string;
+    const cardIssuer = formData.get('card-issuer') as string;
+    const cardImage = formData.get('card-image') as string;
+
+    const authHeader = headers().get('Authorization');
+    if (!authHeader) {
+        return {
+            success: false,
+            message: 'User is not authenticated.',
+        };
+    }
+    const idToken = authHeader.split('Bearer ')[1];
+    const decodedToken = await getAuth(getApp()).verifyIdToken(idToken);
+    const userId = decodedToken.uid;
+
+
+    if (!cardName || !cardIssuer) {
+      return {
+        success: false,
+        message: 'Card Name and Issuer are required.',
+      };
+    }
+
+    const docData = {
+        name: cardName,
+        issuer: cardIssuer,
+        benefits: '', // Added to match schema
+        userId: userId,
+        createdAt: new Date(),
+    };
+
+    if (cardImage) {
+        (docData as any).imageUrl = cardImage;
+    }
+
+    const newSuggestionRef = await firestore.collection('suggested_cards').add(docData);
+    
+    await firestore.collection('suggested_cards').doc(newSuggestionRef.id).update({ id: newSuggestionRef.id });
 
     revalidatePath('/dashboard/cards');
     return {
