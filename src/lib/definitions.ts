@@ -1,8 +1,10 @@
-export type User = {
-  name: string
-  email: string
-  level?: 'admin' | 'standard' | 'outsider'
-  personalCards?: string[]
+
+export type UserProfile = {
+  id: string;
+  email: string;
+  name: string;
+  level: 'admin' | 'standard' | 'outsider';
+  personalCards?: string[];
 }
 
 export type Card = {
@@ -42,5 +44,3 @@ export type Reminder = {
   title: string
   dueDate: string
 }
-
-    

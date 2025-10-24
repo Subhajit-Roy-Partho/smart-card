@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -53,10 +54,6 @@
           "type": "string",
           "description": "Unique identifier for the credit card."
         },
-        "userId": {
-          "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N CreditCard)"
-        },
         "name": {
           "type": "string",
           "description": "Name of the credit card (e.g., Amex Platinum)."
@@ -72,7 +69,6 @@
       },
       "required": [
         "id",
-        "userId",
         "name",
         "issuer",
         "annualFee"
@@ -315,18 +311,14 @@
         }
       },
       {
-        "path": "/users/{userId}/credit_cards/{creditCardId}",
+        "path": "/credit_cards/{creditCardId}",
         "definition": {
           "entityName": "CreditCard",
           "schema": {
             "$ref": "#/backend/entities/CreditCard"
           },
-          "description": "Stores credit card information for a specific user.",
+          "description": "Stores global credit card information, accessible by all users for selection.",
           "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user, matching their Firebase Auth UID."
-            },
             {
               "name": "creditCardId",
               "description": "The unique identifier for the credit card."
@@ -463,6 +455,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to be secure, scalable, and easily debuggable, following the core design principles and strategy mandates. It avoids hierarchical authorization dependencies to ensure atomic operations and easy debugging.\n\n1.  **Authorization Independence:** The structure eliminates the need for `get()` calls in security rules by denormalizing authorization data. For example, any information needed to authorize access to a CreditCard or its subcollections (Transactions, SpendingGoals, PaymentReminders, Balances) is stored directly within those documents, avoiding dependency on the UserProfile. This is achieved through path-based ownership for user-related data and a membership map for collaborative data (if applicable, though not explicitly requested here).\n\n2.  **Clarity of Intent:**  The structure clearly expresses the authorization intent through path-based ownership and dedicated collections. Security rules can be written based on `request.auth.uid` and the document's path, making the rules straightforward and easy to understand.\n\n3.  **DBAC (No Custom Claims):** User roles are stored within the UserProfile document in Firestore. Security rules will rely solely on `request.auth.uid` and the user's role in their profile.\n\n4.  **QAPs (Rules are not Filters):** The structure supports secure `list` operations. Path-based ownership ensures that users can only list documents within their own paths (e.g., `/users/{userId}/credit_cards`). Segregation also plays a role, e.g., SuggestedCard is not associated with the user but rather available for public viewing.\n\n5.  **Invariants:** The structure supports the integrity of ownership. Relationships are clearly defined through `userId` properties.\n\n**Denormalization:** The critical aspect of this design is the denormalization of user-specific authorization data.  For example, while a CreditCard belongs to a User, the User's role is not required within the CreditCard document itself because rules are based on the path `/users/{userId}/credit_cards/{creditCardId}`.\n\n**Structural Segregation:** The structure segregates data based on access patterns. User-specific data is stored under `/users/{userId}`, ensuring only the authenticated user (or an admin) can access it. The `SuggestedCard` collection is separate because the security posture is different (potentially publicly accessible with moderation).\n\n**Access Modeling:**\n*   Private Data: UserProfile, CreditCard, Transaction, SpendingGoal, PaymentReminder, and Balance are all owned by a specific user, using path-based ownership.\n*   Collaborative Data: Not explicitly present in this design, but the Membership Map pattern (`members: {uid1: \"\n  }
+    "reasoning": "The Firestore structure is designed to be secure, scalable, and easily debuggable, following the core design principles and strategy mandates. It avoids hierarchical authorization dependencies to ensure atomic operations and easy debugging.\n\n1.  **Authorization Independence:** The structure eliminates the need for `get()` calls in security rules by denormalizing authorization data. For example, any information needed to authorize access to a CreditCard or its subcollections (Transactions, SpendingGoals, PaymentReminders, Balances) is stored directly within those documents, avoiding dependency on the UserProfile. This is achieved through path-based ownership for user-related data and a membership map for collaborative data (if applicable, though not explicitly requested here).\n\n2.  **Clarity of Intent:**  The structure clearly expresses the authorization intent through path-based ownership and dedicated collections. Security rules can be written based on `request.auth.uid` and the document's path, making the rules straightforward and easy to understand.\n\n3.  **DBAC (No Custom Claims):** User roles are stored within the UserProfile document in Firestore. Security rules will rely solely on `request.auth.uid` and the user's role in their profile.\n\n4.  **QAPs (Rules are not Filters):** The structure supports secure `list` operations. Path-based ownership ensures that users can only list documents within their own paths (e.g., `/users/{userId}/credit_cards`). Segregation also plays a role, e.g., SuggestedCard is not associated with the user but rather available for public viewing.\n\n5.  **Invariants:** The structure supports the integrity of ownership. Relationships are clearly defined through `userId` properties.\n\n**Denormalization:** The critical aspect of this design is the denormalization of user-specific authorization data.  For example, while a CreditCard belongs to a User, the User's role is not required within the CreditCard document itself because rules are based on the path `/users/{userId}/credit_cards/{creditCardId}`.\n\n**Structural Segregation:** The structure segregates data based on access patterns. User-specific data is stored under `/users/{userId}`, ensuring only the authenticated user (or an admin) can access it. The `SuggestedCard` collection is separate because the security posture is different (potentially publicly accessible with moderation).\n\n**Access Modeling:**\n*   Private Data: UserProfile, Transaction, SpendingGoal, PaymentReminder, and Balance are all owned by a specific user, using path-based ownership.\n*  Global Data: A top-level `credit_cards` collection is added to store global card definitions that users can select from. This is more efficient than storing all cards under each user."
+  }
 }
-    

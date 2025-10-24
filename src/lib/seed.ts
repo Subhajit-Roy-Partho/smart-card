@@ -1,14 +1,9 @@
+
 'use server';
 
-// A script to seed the database with initial data.
-// This is for demo purposes and would be replaced with real data in a production environment.
 import { initializeFirebaseAdmin } from '@/firebase/server-init';
 import {
   WriteBatch,
-  CollectionReference,
-  DocumentData,
-  QuerySnapshot,
-  getFirestore,
 } from 'firebase-admin/firestore';
 
 const cards = [
@@ -125,21 +120,16 @@ const categories = [
   },
 ];
 
-export async function seedDatabase(userId: string) {
-  const { firestore } = await initializeFirebaseAdmin();
-  const batch: WriteBatch = firestore.batch();
-
-  try {
-    // Check if user's data has already been seeded by checking for a marker document
-    const userSeedMarkerRef = firestore.doc(`users/${userId}/private/seed_marker`);
-    const seedMarkerDoc = await userSeedMarkerRef.get();
-
-    if (seedMarkerDoc.exists) {
-      console.log('User already has data. Skipping seed.');
-      return { success: true, message: 'User already has data.' };
+async function seedGlobalData(batch: WriteBatch, firestore: FirebaseFirestore.Firestore) {
+    // Seed Global Cards
+    const cardsRef = firestore.collection('credit_cards');
+    for (const card of cards) {
+        const cardDoc = cardsRef.doc(card.id);
+        const docSnapshot = await cardDoc.get();
+        if (!docSnapshot.exists) {
+            batch.set(cardDoc, card);
+        }
     }
-
-    console.log(`Seeding data for user: ${userId}`);
 
     // Seed Categories (globally)
     const categoriesRef = firestore.collection('categories');
@@ -150,34 +140,59 @@ export async function seedDatabase(userId: string) {
             batch.set(categoryDoc, category);
         }
     }
-    console.log('Seeding categories...');
+}
 
-    // Seed Credit Cards for the user
-    const userCardsRef = firestore.collection(`users/${userId}/credit_cards`);
-    cards.forEach((card) => {
-      const cardDoc = userCardsRef.doc(card.id);
-      batch.set(cardDoc, card);
 
-      // Seed Transactions for each card
-      const cardTransactions = transactions.filter((t) => t.cardId === card.id);
-      const transactionsRef = cardDoc.collection('transactions');
-      cardTransactions.forEach((transaction) => {
-        const transactionDoc = transactionsRef.doc(transaction.id);
-        batch.set(transactionDoc, transaction);
-      });
-    });
-    console.log('Seeding cards and transactions...');
-    
-    // Set the marker so we don't seed again for this user
-    batch.set(userSeedMarkerRef, { seeded: true, timestamp: new Date() });
+export async function seedDatabase(userId: string) {
+  const { firestore } = await initializeFirebaseAdmin();
+  const batch: WriteBatch = firestore.batch();
+
+  try {
+    // Check if the global data has been seeded
+    const globalSeedMarkerRef = firestore.doc('system/seed_marker');
+    const globalSeedMarkerDoc = await globalSeedMarkerRef.get();
+
+    if (!globalSeedMarkerDoc.exists) {
+        console.log('Seeding global data (cards, categories)...');
+        await seedGlobalData(batch, firestore);
+        batch.set(globalSeedMarkerRef, { seeded: true, timestamp: new Date() });
+    }
+
+    // Check if the user has been seeded
+    const userDocRef = firestore.doc(`users/${userId}`);
+    const userDoc = await userDocRef.get();
+
+    if (userDoc.exists) {
+        console.log(`User ${userId} already exists. Skipping user seed.`);
+    } else {
+        console.log(`Seeding data for new user: ${userId}`);
+        // Create user profile
+        batch.set(userDocRef, {
+            id: userId,
+            email: `user-${userId}@example.com`, // Placeholder, should be updated with actual email
+            name: `User ${userId}`, // Placeholder
+            level: 'standard',
+            personalCards: [],
+        });
+
+        // Seed transactions for the user (as a subcollection of their owned cards)
+        // For this demo, let's assume they own the first two cards.
+        const userOwnedCards = ['card-1', 'card-2'];
+        userOwnedCards.forEach(cardId => {
+            const cardTransactions = transactions.filter(t => t.cardId === cardId);
+            const transactionsRef = userDocRef.collection('transactions');
+            cardTransactions.forEach(transaction => {
+                const transactionDoc = transactionsRef.doc(transaction.id);
+                batch.set(transactionDoc, {...transaction, userId: userId});
+            });
+        });
+    }
 
     await batch.commit();
     console.log('Database seeded successfully!');
     return { success: true, message: 'Database seeded successfully!' };
   } catch (error) {
     console.error('Error seeding database:', error);
-    // It's better to throw the error to be caught by the caller
-    // or return a structured error response.
     return { success: false, message: `Error seeding database: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
