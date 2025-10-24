@@ -4,13 +4,11 @@
 // This is for demo purposes and would be replaced with real data in a production environment.
 import { initializeFirebaseAdmin } from '@/firebase/server-init';
 import {
-  collection,
-  doc,
-  writeBatch,
-  getDocs,
-  QuerySnapshot,
+  WriteBatch,
+  CollectionReference,
   DocumentData,
-} from 'firebase/firestore';
+  QuerySnapshot,
+} from 'firebase-admin/firestore';
 
 const cards = [
   {
@@ -128,12 +126,13 @@ const categories = [
 
 export async function seedDatabase(userId: string) {
   const { firestore } = await initializeFirebaseAdmin();
-  const batch = writeBatch(firestore);
+  const batch: WriteBatch = firestore.batch();
 
   try {
     // Check if user already has data
-    const userCardsRef = collection(firestore, 'users', userId, 'credit_cards');
-    const existingCards: QuerySnapshot<DocumentData> = await getDocs(userCardsRef);
+    const userCardsRef: CollectionReference<DocumentData> = firestore.collection(`users/${userId}/credit_cards`);
+    const existingCards: QuerySnapshot<DocumentData> = await userCardsRef.get();
+
     if (!existingCards.empty) {
       console.log('User already has data. Skipping seed.');
       return { success: true, message: 'User already has data.' };
@@ -142,23 +141,26 @@ export async function seedDatabase(userId: string) {
     console.log(`Seeding data for user: ${userId}`);
 
     // Seed Categories (globally)
-    const categoriesRef = collection(firestore, 'categories');
-    categories.forEach((category) => {
-      const categoryDoc = doc(categoriesRef, category.id);
-      batch.set(categoryDoc, category);
-    });
+    const categoriesRef = firestore.collection('categories');
+    for (const category of categories) {
+        const categoryDoc = categoriesRef.doc(category.id);
+        const docSnapshot = await categoryDoc.get();
+        if (!docSnapshot.exists) {
+            batch.set(categoryDoc, category);
+        }
+    }
     console.log('Seeding categories...');
 
     // Seed Credit Cards for the user
     cards.forEach((card) => {
-      const cardDoc = doc(userCardsRef, card.id);
+      const cardDoc = userCardsRef.doc(card.id);
       batch.set(cardDoc, card);
 
       // Seed Transactions for each card
       const cardTransactions = transactions.filter((t) => t.cardId === card.id);
-      const transactionsRef = collection(cardDoc, 'transactions');
+      const transactionsRef = cardDoc.collection('transactions');
       cardTransactions.forEach((transaction) => {
-        const transactionDoc = doc(transactionsRef, transaction.id);
+        const transactionDoc = transactionsRef.doc(transaction.id);
         batch.set(transactionDoc, transaction);
       });
     });
@@ -169,6 +171,8 @@ export async function seedDatabase(userId: string) {
     return { success: true, message: 'Database seeded successfully!' };
   } catch (error) {
     console.error('Error seeding database:', error);
-    return { success: false, message: `Error seeding database: ${error}` };
+    // It's better to throw the error to be caught by the caller
+    // or return a structured error response.
+    return { success: false, message: `Error seeding database: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
