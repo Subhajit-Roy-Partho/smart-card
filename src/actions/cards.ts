@@ -1,4 +1,3 @@
-
 'use server';
 
 import { initializeFirebaseAdmin } from '@/firebase/server-init';
@@ -11,67 +10,15 @@ type FormState = {
   message: string;
 };
 
+// This server action is being deprecated in favor of an API route
+// to ensure proper environment variable handling for Firebase Admin SDK.
+// The logic is moved to /api/suggest-card/route.ts
 export async function suggestCard(
   prevState: FormState,
-  formData: FormData,
-  idToken: string
+  formData: FormData
 ): Promise<FormState> {
-  try {
-    const { firestore } = await initializeFirebaseAdmin();
-    const cardName = formData.get('card-name') as string;
-    const cardIssuer = formData.get('card-issuer') as string;
-    const cardImage = formData.get('card-image') as string;
-
-    if (!idToken) {
-      return {
-        success: false,
-        message: 'User is not authenticated.',
-      };
-    }
-
-    if (!cardName || !cardIssuer) {
-      return {
-        success: false,
-        message: 'Card Name and Issuer are required.',
-      };
-    }
-
-    const decodedToken = await getAuth(getApp()).verifyIdToken(idToken);
-    const userId = decodedToken.uid;
-
-    const docData = {
-      name: cardName,
-      issuer: cardIssuer,
-      benefits: '', // Added to match schema
-      userId: userId,
-      createdAt: new Date(),
-    };
-
-    if (cardImage) {
-      (docData as any).imageUrl = cardImage;
-    }
-
-    const newSuggestionRef = await firestore
-      .collection('suggested_cards')
-      .add(docData);
-
-    await firestore
-      .collection('suggested_cards')
-      .doc(newSuggestionRef.id)
-      .update({ id: newSuggestionRef.id });
-
-    revalidatePath('/dashboard/cards');
-    return {
-      success: true,
-      message: 'Card suggested successfully!',
-    };
-  } catch (error) {
-    console.error('Error suggesting card:', error);
-    const errorMessage =
-      error instanceof Error ? error.message : 'An unknown error occurred.';
-    return {
-      success: false,
-      message: `Failed to suggest card: ${errorMessage}`,
-    };
-  }
+  return {
+    success: false,
+    message: 'This action is deprecated. Please use the API route.',
+  };
 }

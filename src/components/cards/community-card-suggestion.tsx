@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -24,7 +23,6 @@ import type { Card as CardType } from '@/lib/definitions';
 import { collection } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
 import { useRef, useState, useTransition } from 'react';
-import { suggestCard } from '@/actions/cards';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -43,11 +41,12 @@ export function CommunityCardSuggestion() {
   );
   const { data: cards, isLoading } = useCollection<CardType>(cardsQuery);
   
-  const handleSuggestCard = async (formData: FormData) => {
+  const handleSuggestCard = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (!user) {
       toast({
         variant: 'destructive',
-        title: 'Error',
+        title: 'Authentication Error',
         description: 'You must be logged in to suggest a card.',
       });
       return;
@@ -56,24 +55,26 @@ export function CommunityCardSuggestion() {
     startSuggestTransition(async () => {
       try {
         const idToken = await user.getIdToken();
-        const result = await suggestCard(
-          { success: false, message: '' },
-          formData,
-          idToken
-        );
+        const formData = new FormData(event.currentTarget);
+        
+        const response = await fetch('/api/suggest-card', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: formData,
+        });
 
-        if (result.success) {
+        const result = await response.json();
+
+        if (response.ok) {
           toast({
             title: 'Success!',
             description: result.message,
           });
           formRef.current?.reset();
         } else {
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: result.message,
-          });
+          throw new Error(result.message || 'An unknown error occurred.');
         }
       } catch (error) {
         const errorMessage =
@@ -81,7 +82,7 @@ export function CommunityCardSuggestion() {
         toast({
           variant: 'destructive',
           title: 'Submission Error',
-          description: errorMessage,
+          description: `Failed to suggest card: ${errorMessage}`,
         });
       }
     });
@@ -144,7 +145,7 @@ export function CommunityCardSuggestion() {
             </form>
           </TabsContent>
           <TabsContent value="suggest-card" className="space-y-4 pt-4">
-            <form ref={formRef} action={handleSuggestCard} className="space-y-4">
+            <form ref={formRef} onSubmit={handleSuggestCard} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="card-name">Card Name</Label>
                 <Input
