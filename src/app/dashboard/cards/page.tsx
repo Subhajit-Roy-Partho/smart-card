@@ -6,7 +6,7 @@ export default function CardsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Card Suggestions</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-white">Card Suggestions</h1>
         <p className="text-muted-foreground">
           Tools to help you choose the best card and contribute to our community.
         </p>
