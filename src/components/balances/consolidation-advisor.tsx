@@ -18,9 +18,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cards } from '@/lib/data';
-import { useFormState } from 'react-dom';
+import { useActionState } from 'react';
 import { balanceConsolidationAdvisor } from '@/ai/flows/balance-consolidation-advisor';
-import { useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { CheckCircle, Loader2, XCircle } from 'lucide-react';
 
@@ -63,20 +62,11 @@ async function formAction(prevState: FormState, formData: FormData): Promise<For
 }
 
 export function ConsolidationAdvisor() {
-  const [state, formActionWithState] = useFormState(formAction, null);
-  const [pending, setPending] = useState(false);
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setPending(true);
-    const formData = new FormData(event.currentTarget);
-    await formActionWithState(formData);
-    setPending(false);
-  };
+  const [state, formActionWithState, isPending] = useActionState(formAction, null);
     
   return (
     <Card>
-      <form onSubmit={handleSubmit}>
+      <form action={formActionWithState}>
         <CardHeader>
           <CardTitle>Balance Consolidation Advisor</CardTitle>
           <CardDescription>
@@ -127,8 +117,8 @@ export function ConsolidationAdvisor() {
           )}
         </CardContent>
         <CardFooter>
-          <Button type="submit" disabled={pending}>
-            {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="submit" disabled={isPending}>
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Advise Me
           </Button>
         </CardFooter>

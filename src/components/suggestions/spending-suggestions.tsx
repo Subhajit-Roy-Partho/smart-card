@@ -9,8 +9,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
-import { useFormState } from 'react-dom';
+import { useActionState } from 'react';
 import { getSpendingOptimizationSuggestions } from '@/ai/flows/spending-optimization-suggestions';
 import { transactions, cards } from '@/lib/data';
 import { Loader2 } from 'lucide-react';
@@ -43,20 +42,11 @@ async function formAction(prevState: FormState, formData: FormData): Promise<For
 }
 
 export function SpendingSuggestions() {
-  const [state, formActionWithState] = useFormState(formAction, null);
-  const [pending, setPending] = useState(false);
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setPending(true);
-    const formData = new FormData(event.currentTarget);
-    await formActionWithState(formData);
-    setPending(false);
-  };
+  const [state, formActionWithState, isPending] = useActionState(formAction, null);
   
   return (
     <Card>
-      <form onSubmit={handleSubmit}>
+      <form action={formActionWithState}>
         <CardHeader>
           <CardTitle>Spending Optimization</CardTitle>
           <CardDescription>
@@ -65,7 +55,7 @@ export function SpendingSuggestions() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {pending && (
+          {isPending && (
             <div className="flex items-center space-x-2 text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>Analyzing your spending...</span>
@@ -86,8 +76,8 @@ export function SpendingSuggestions() {
           )}
         </CardContent>
         <CardFooter>
-          <Button type="submit" disabled={pending}>
-            {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="submit" disabled={isPending}>
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Generate Suggestions
           </Button>
         </CardFooter>

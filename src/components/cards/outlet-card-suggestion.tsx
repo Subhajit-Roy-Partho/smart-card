@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useFormState } from 'react-dom';
+import { useActionState, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -50,20 +49,11 @@ async function formAction(
 }
 
 export function OutletCardSuggestion() {
-  const [state, formActionWithState] = useFormState(formAction, null);
-  const [pending, setPending] = useState(false);
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setPending(true);
-    const formData = new FormData(event.currentTarget);
-    await formActionWithState(formData);
-    setPending(false);
-  };
+  const [state, formActionWithState, isPending] = useActionState(formAction, null);
 
   return (
     <Card>
-      <form onSubmit={handleSubmit}>
+      <form action={formActionWithState}>
         <CardHeader>
           <CardTitle>Outlet-Specific Suggestion</CardTitle>
           <CardDescription>
@@ -95,8 +85,8 @@ export function OutletCardSuggestion() {
           )}
         </CardContent>
         <CardFooter>
-          <Button type="submit" disabled={pending}>
-            {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="submit" disabled={isPending}>
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Get Suggestion
           </Button>
         </CardFooter>

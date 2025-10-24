@@ -12,9 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useFormState } from 'react-dom';
+import { useActionState } from 'react';
 import { categorizeAndValidatePerk } from '@/ai/flows/categorize-and-validate-perk';
-import { useState } from 'react';
 import { CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
@@ -43,16 +42,7 @@ async function perkFormAction(
 }
 
 export function CommunityCardSuggestion() {
-    const [perkState, perkFormActionWithState] = useFormState(perkFormAction, null);
-    const [perkPending, setPerkPending] = useState(false);
-
-    const handlePerkSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setPerkPending(true);
-        const formData = new FormData(event.currentTarget);
-        await perkFormActionWithState(formData);
-        setPerkPending(false);
-    };
+    const [perkState, perkFormActionWithState, isPerkPending] = useActionState(perkFormAction, null);
 
   return (
     <Card>
@@ -69,7 +59,7 @@ export function CommunityCardSuggestion() {
             <TabsTrigger value="suggest-card">Suggest a Card</TabsTrigger>
           </TabsList>
           <TabsContent value="add-perk" className="space-y-4 pt-4">
-            <form onSubmit={handlePerkSubmit} className="space-y-4">
+            <form action={perkFormActionWithState} className="space-y-4">
                 <div className="space-y-2">
                     <Label htmlFor="perk-description">Perk Description</Label>
                     <Textarea
@@ -87,8 +77,8 @@ export function CommunityCardSuggestion() {
                         </AlertDescription>
                     </Alert>
                 )}
-                <Button type="submit" disabled={perkPending}>
-                    {perkPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" disabled={isPerkPending}>
+                    {isPerkPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Validate & Add Perk
                 </Button>
             </form>
