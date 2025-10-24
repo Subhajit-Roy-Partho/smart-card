@@ -1,38 +1,81 @@
+/**
+ * @fileoverview Firestore Security Rules for Smart Spend application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model for private data while allowing public read access to shared data.
+ * All write operations are protected by authorization checks based on the authenticated user's UID.
+ *
+ * Data Structure:
+ * - User-specific data (UserProfile, Transactions, SpendingGoals, PaymentReminders, Balances) is nested under `/users/{userId}`.
+ * - Globally accessible credit card data is stored in the top-level `/credit_cards` collection.
+ * - Publicly suggested cards are stored in the top-level `/suggested_cards` collection.
+ *
+ * Key Security Decisions:
+ * - Users can only create, read, update, and delete data under their own user ID.
+ * - Listing of user documents is restricted to the owning user.
+ * - Global credit card data is publicly readable but not writable through the rules.
+ * - Suggested cards are publicly readable.  Write operations are not defined but would likely be restricted to authenticated users.
+ *
+ * Denormalization for Authorization:
+ *  - The path-based structure `users/{userId}/...` inherently denormalizes the user ID, making authorization checks simple and efficient.
+ *  - No `get()` calls are needed to determine ownership because the user ID is directly available in the path.
+ *
+ * Structural Segregation:
+ *  - User-specific data is stored under the `/users/{userId}` collection, ensuring that only the authenticated user can access it.
+ *  - Publicly suggested cards are stored in the `/suggested_cards` collection, allowing for public read access.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description: Manages user profile data, ensuring only the user can read and write their own profile.
-     * @path: /users/{userId}
-     * @allow: (create, update, delete) User with UID 'user123' can modify /users/user123.
-     * @deny: (create, update, delete) User with UID 'user456' cannot modify /users/user123.
-     * @principle: Enforces document ownership for all operations.
+     * @description Checks if the current user is signed in.
      */
-    match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource.data != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+    function isSignedIn() {
+      return request.auth != null;
     }
 
     /**
-     * @description: Manages global credit card data, allowing anyone to read but nobody to create/update/delete.
-     * @path: /credit_cards/{creditCardId}
-     * @allow: (get, list) Any user can read credit card data.
-     * @deny: (create, update, delete) No one can create, update, or delete credit card data.
-     * @principle: Allows public read access but restricts all write access.
+     * @description Checks if the request is made by the owner of the document.
+     */
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the request is made by the existing owner of the document and that the document exists.
+     */
+    function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Rules for user profiles.
+     * @path /users/{userId}
+     * @allow (create) User with UID 'user123' can create their profile with id: 'user123'.
+     * @deny (create) User with UID 'user123' cannot create a profile with id: 'user456'.
+     * @allow (get) User with UID 'user123' can read their profile.
+     * @deny (get) User with UID 'user123' cannot read another user's profile.
+     * @allow (update) User with UID 'user123' can update their profile.
+     * @deny (update) User with UID 'user123' cannot update another user's profile.
+     * @allow (delete) User with UID 'user123' can delete their profile.
+     * @deny (delete) User with UID 'user123' cannot delete another user's profile.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // User listing is not permitted.
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Rules for global credit cards.
+     * @path /credit_cards/{creditCardId}
+     * @allow (get) Any user can read any credit card.
+     * @deny (create) No user can create a credit card through the rules.
+     * @principle Public read access for credit card data.
      */
     match /credit_cards/{creditCardId} {
       allow get, list: if true;
@@ -40,36 +83,32 @@ service cloud.firestore {
     }
 
     /**
-     * @description: Manages transaction data for a specific credit card, ensuring only the owner can manage their transactions.
-     * @path: /users/{userId}/credit_cards/{creditCardId}/transactions/{transactionId}
-     * @allow: (create, update, delete) User with UID 'user123' can modify /users/user123/credit_cards/card456/transactions/txn789.
-     * @deny: (create, update, delete) User with UID 'user456' cannot modify /users/user123/credit_cards/card456/transactions/txn789.
-     * @principle: Enforces document ownership for writes.
+     * @description Rules for transactions under a specific credit card for a user.
+     * @path /users/{userId}/credit_cards/{creditCardId}/transactions/{transactionId}
+     * @allow (create) User with UID 'user123' can create a transaction for their credit card.
+     * @deny (create) User with UID 'user123' cannot create a transaction for another user's credit card.
+     * @allow (get) User with UID 'user123' can read a transaction for their credit card.
+     * @deny (get) User with UID 'user123' cannot read a transaction for another user's credit card.
+     * @allow (update) User with UID 'user123' can update a transaction for their credit card.
+     * @deny (update) User with UID 'user123' cannot update a transaction for another user's credit card.
+     * @allow (delete) User with UID 'user123' can delete a transaction for their credit card.
+     * @deny (delete) User with UID 'user123' cannot delete a transaction for another user's credit card.
+     * @principle Enforces document ownership for writes within the user's data tree.
      */
     match /users/{userId}/credit_cards/{creditCardId}/transactions/{transactionId} {
-        function isSignedIn() {
-          return request.auth != null;
-        }
-        function isOwner(userId) {
-          return request.auth.uid == userId;
-        }
-        function isExistingOwner(userId) {
-          return isOwner(userId) && resource.data != null;
-        }
-
-        allow get: if isSignedIn() && isOwner(userId);
-        allow list: if false;
-        allow create: if isSignedIn() && isOwner(userId);
-        allow update: if isSignedIn() && isExistingOwner(userId);
-        allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description: Manages category data, allowing anyone to read but nobody to create/update/delete.
-     * @path: /categories/{categoryId}
-     * @allow: (get, list) Any user can read category data.
-     * @deny: (create, update, delete) No one can create, update, or delete category data.
-     * @principle: Allows public read access but restricts all write access.
+     * @description Rules for categories.
+     * @path /categories/{categoryId}
+     * @allow (get) Any user can read any category.
+     * @deny (create) No user can create a category through the rules.
+     * @principle Public read access for category data.
      */
     match /categories/{categoryId} {
       allow get, list: if true;
@@ -77,119 +116,107 @@ service cloud.firestore {
     }
 
     /**
-     * @description: Manages spending goal data for a specific credit card, ensuring only the owner can manage their spending goals.
-     * @path: /users/{userId}/credit_cards/{creditCardId}/spending_goals/{spendingGoalId}
-     * @allow: (create, update, delete) User with UID 'user123' can modify /users/user123/credit_cards/card456/spending_goals/goal789.
-     * @deny: (create, update, delete) User with UID 'user456' cannot modify /users/user123/credit_cards/card456/spending_goals/goal789.
-     * @principle: Enforces document ownership for writes.
+     * @description Rules for spending goals under a specific credit card for a user.
+     * @path /users/{userId}/credit_cards/{creditCardId}/spending_goals/{spendingGoalId}
+     * @allow (create) User with UID 'user123' can create a spending goal for their credit card.
+     * @deny (create) User with UID 'user123' cannot create a spending goal for another user's credit card.
+     * @allow (get) User with UID 'user123' can read a spending goal for their credit card.
+     * @deny (get) User with UID 'user123' cannot read a spending goal for another user's credit card.
+     * @allow (update) User with UID 'user123' can update a spending goal for their credit card.
+     * @deny (update) User with UID 'user123' cannot update a spending goal for another user's credit card.
+     * @allow (delete) User with UID 'user123' can delete a spending goal for their credit card.
+     * @deny (delete) User with UID 'user123' cannot delete a spending goal for another user's credit card.
+     * @principle Enforces document ownership for writes within the user's data tree.
      */
     match /users/{userId}/credit_cards/{creditCardId}/spending_goals/{spendingGoalId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-        function isExistingOwner(userId) {
-          return isOwner(userId) && resource.data != null;
-        }
-
-      allow get: if isSignedIn() && isOwner(userId);
-        allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description: Manages payment reminder data for a specific credit card, ensuring only the owner can manage their payment reminders.
-     * @path: /users/{userId}/credit_cards/{creditCardId}/payment_reminders/{paymentReminderId}
-     * @allow: (create, update, delete) User with UID 'user123' can modify /users/user123/credit_cards/card456/payment_reminders/reminder789.
-     * @deny: (create, update, delete) User with UID 'user456' cannot modify /users/user123/credit_cards/card456/payment_reminders/reminder789.
-     * @principle: Enforces document ownership for writes.
+     * @description Rules for payment reminders under a specific credit card for a user.
+     * @path /users/{userId}/credit_cards/{creditCardId}/payment_reminders/{paymentReminderId}
+     * @allow (create) User with UID 'user123' can create a payment reminder for their credit card.
+     * @deny (create) User with UID 'user123' cannot create a payment reminder for another user's credit card.
+     * @allow (get) User with UID 'user123' can read a payment reminder for their credit card.
+     * @deny (get) User with UID 'user123' cannot read a payment reminder for another user's credit card.
+     * @allow (update) User with UID 'user123' can update a payment reminder for their credit card.
+     * @deny (update) User with UID 'user123' cannot update a payment reminder for another user's credit card.
+     * @allow (delete) User with UID 'user123' can delete a payment reminder for their credit card.
+     * @deny (delete) User with UID 'user123' cannot delete a payment reminder for another user's credit card.
+     * @principle Enforces document ownership for writes within the user's data tree.
      */
     match /users/{userId}/credit_cards/{creditCardId}/payment_reminders/{paymentReminderId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-        function isExistingOwner(userId) {
-          return isOwner(userId) && resource.data != null;
-        }
-
-      allow get: if isSignedIn() && isOwner(userId);
-        allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description: Manages suggested card data, allowing anyone to read but only authenticated users to create. Update/Delete are disallowed.
-     * @path: /suggested_cards/{suggestedCardId}
-     * @allow: (get, list) Any user can read suggested card data.
-     * @allow: (create) Only signed-in users can create.
-     * @deny: (update, delete) No one can update or delete suggested card data.
-     * @principle: Allows public read access and authenticated-user create access, restricts update/delete.
+     * @description Rules for suggested cards.
+     * @path /suggested_cards/{suggestedCardId}
+     * @allow (get) Any user can read any suggested card.
+     * @allow (create) Any signed in user can create a suggested card.
+     * @principle Public read access for suggested card data. Owner-only for writes.
      */
     match /suggested_cards/{suggestedCardId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if false;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && resource != null;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid && resource != null;
     }
 
     /**
-     * @description: Manages balance data for a specific credit card, ensuring only the owner can manage their balances.
-     * @path: /users/{userId}/credit_cards/{creditCardId}/balances/{balanceId}
-     * @allow: (create, update, delete) User with UID 'user123' can modify /users/user123/credit_cards/card456/balances/balance789.
-     * @deny: (create, update, delete) User with UID 'user456' cannot modify /users/user123/credit_cards/card456/balances/balance789.
-     * @principle: Enforces document ownership for writes.
+     * @description Rules for balances under a specific credit card for a user.
+     * @path /users/{userId}/credit_cards/{creditCardId}/balances/{balanceId}
+     * @allow (create) User with UID 'user123' can create a balance for their credit card.
+     * @deny (create) User with UID 'user123' cannot create a balance for another user's credit card.
+     * @allow (get) User with UID 'user123' can read a balance for their credit card.
+     * @deny (get) User with UID 'user123' cannot read a balance for another user's credit card.
+     * @allow (update) User with UID 'user123' can update a balance for their credit card.
+     * @deny (update) User with UID 'user123' cannot update a balance for another user's credit card.
+     * @allow (delete) User with UID 'user123' can delete a balance for their credit card.
+     * @deny (delete) User with UID 'user123' cannot delete a balance for another user's credit card.
+     * @principle Enforces document ownership for writes within the user's data tree.
      */
     match /users/{userId}/credit_cards/{creditCardId}/balances/{balanceId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-        function isExistingOwner(userId) {
-          return isOwner(userId) && resource.data != null;
-        }
-
-      allow get: if isSignedIn() && isOwner(userId);
-        allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
-    /**
-     * @description: Allows the owner of a user to list their credit cards.
-     * @path: /users/{userId}/credit_cards/{creditCardId}
-     * @allow: (list) User with UID 'user123' can list /users/user123/credit_cards
-     * @deny: (list) User with UID 'user456' cannot list /users/user123/credit_cards
-     * @principle: List operation secured by path.
-     */
-      match /users/{userId}/credit_cards/{creditCardId} {
-        function isSignedIn() {
-          return request.auth != null;
-        }
-        function isOwner(userId) {
-          return request.auth.uid == userId;
-        }
-        function isExistingOwner(userId) {
-          return isOwner(userId) && resource.data != null;
-        }
-      allow get: if isSignedIn() && isOwner(userId);
-        allow list: if false;
-        allow create: if isSignedIn() && isOwner(userId);
-        allow update: if isSignedIn() && isExistingOwner(userId);
-        allow delete: if isSignedIn() && isExistingOwner(userId);
+
+     /**
+      * @description Rules for credit cards under a specific user.
+      * @path /users/{userId}/credit_cards/{creditCardId}
+      * @allow (get) User with UID 'user123' can get a credit card.
+      * @deny (get) User with UID 'user123' cannot get another user's credit card.
+      * @allow (list) User with UID 'user123' can list their credit cards.
+      * @deny (create) User with UID 'user123' cannot create a credit card through the rules.
+      * @principle Enforces document ownership for reads and writes.
+      */
+    match /users/{userId}/credit_cards/{creditCardId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create, update, delete: if false;
+    }
+
+     /**
+      * @description Rules for credit cards under a specific user.
+      * @path /users/{userId}/credit_cards
+      * @allow (list) User with UID 'user123' can list their credit cards.
+      * @deny (create) User with UID 'user123' cannot create a credit card through the rules.
+      * @principle Enforces document ownership for reads and writes.
+      */
+    match /users/{userId}/credit_cards {
+        allow list: if isOwner(userId);
+        allow get, create, update, delete: if false;
     }
   }
 }
