@@ -8,30 +8,39 @@ import { getFirestore, Firestore } from 'firebase-admin/firestore';
 let app: App;
 let firestore: Firestore;
 
+// This is the projectId of the Firebase project your client-side app is configured with.
+// It's being explicitly set here to prevent mismatches in server environments.
+const CORRECT_PROJECT_ID = 'studio-7539869871-a3f37';
+
 async function initializeFirebaseAdmin() {
   if (!getApps().length) {
     const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
     if (serviceAccount) {
       try {
         const credentials = JSON.parse(serviceAccount);
+        // Ensure the service account's projectId matches if it exists, but
+        // explicitly setting projectId in the options is the safest bet.
+        if (credentials.project_id && credentials.project_id !== CORRECT_PROJECT_ID) {
+            console.warn(`Warning: Service account's project ID (${credentials.project_id}) does not match the configured project ID (${CORRECT_PROJECT_ID}).`);
+        }
+        
         app = initializeApp({
           credential: cert(credentials),
+          projectId: CORRECT_PROJECT_ID, // Explicitly set the project ID here.
         });
       } catch (error) {
         console.error(
           'Failed to parse FIREBASE_SERVICE_ACCOUNT. Initializing without credentials.',
           error
         );
-        // This will likely fail in production but might work in some emulated environments.
-        app = initializeApp();
+        app = initializeApp({ projectId: CORRECT_PROJECT_ID });
       }
     } else {
       console.warn(
         'FIREBASE_SERVICE_ACCOUNT not set. Initializing without credentials. Admin features will not work.'
       );
-      // This will rely on Application Default Credentials (ADC) if available,
-      // otherwise it will fail.
-      app = initializeApp();
+      // This will rely on Application Default Credentials (ADC) if available.
+      app = initializeApp({ projectId: CORRECT_PROJECT_ID });
     }
   } else {
     app = getApps()[0];
