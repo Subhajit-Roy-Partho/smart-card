@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown error occurred.';
     return NextResponse.json(
-      { message: `Failed to suggest card: ${errorMessage}` },
+      { success: false, message: `Failed to suggest card: ${errorMessage}` },
       { status: 500 }
     );
   }
