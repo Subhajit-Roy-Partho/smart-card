@@ -86,7 +86,7 @@ export function CommunityCardSuggestion() {
                   placeholder="e.g., 5% cashback, $10 coupon, 2x points"
                 />
               </div>
-              <Button disabled>Add Benefit</Button>
+              <Button>Add Benefit</Button>
             </form>
           </TabsContent>
           <TabsContent value="suggest-card" className="space-y-4 pt-4">
@@ -109,7 +109,7 @@ export function CommunityCardSuggestion() {
                   placeholder="https://example.com/card-image.png"
                 />
               </div>
-              <Button disabled>Submit Suggestion</Button>
+              <Button>Submit Suggestion</Button>
             </form>
           </TabsContent>
         </Tabs>
