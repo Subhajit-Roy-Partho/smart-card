@@ -1,3 +1,4 @@
+
 import { BalanceDisplay } from '@/components/balances/balance-display';
 import { ConsolidationAdvisor } from '@/components/balances/consolidation-advisor';
 

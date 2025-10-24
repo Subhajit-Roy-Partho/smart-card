@@ -1,3 +1,4 @@
+
 import { PaymentAlerts } from '@/components/reminders/payment-alerts';
 
 export default function RemindersPage() {

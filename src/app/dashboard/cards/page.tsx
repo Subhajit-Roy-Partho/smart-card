@@ -1,3 +1,4 @@
+
 import { OutletCardSuggestion } from '@/components/cards/outlet-card-suggestion';
 import { CommunityCardSuggestion } from '@/components/cards/community-card-suggestion';
 

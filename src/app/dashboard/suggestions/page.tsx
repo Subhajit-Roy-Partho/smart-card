@@ -1,3 +1,4 @@
+
 import { SpendingSuggestions } from '@/components/suggestions/spending-suggestions';
 
 export default function SuggestionsPage() {
